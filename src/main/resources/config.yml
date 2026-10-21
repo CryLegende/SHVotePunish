@@ -1,0 +1,146 @@
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# Configuration de SHVotePunish #
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+# Paramètres généraux du vote
+vote:
+  # Commande à exécuter quand un vote réussit. Placeholders: {player}, {uuid}
+  command_on_success: "tempipmute {player} 1h -s [VoteMute] Comportement inapproprié"
+
+  # Durée en secondes avant qu'un vote n'expire s'il n'atteint pas le nombre requis.
+  duration: 120
+
+  # Nombre de votes requis.
+  # "type" peut être 'FIXED' ou 'PERCENTAGE'.
+  # Si 'FIXED', "value" est le nombre de votes nécessaires.
+  # Si 'PERCENTAGE', "value" est le pourcentage de joueurs en ligne (non-AFK) requis.
+  required_votes:
+    type: 'FIXED'
+    value: 3 # 50% des joueurs en ligne
+
+# Paramètres du menu de confirmation (lancé par /votepunish)
+confirmation_menu:
+  title: "Voter pour mute {player}"
+  confirm_item:
+    material: "GREEN_STAINED_GLASS_PANE"
+    name: "&a&lValider"
+    lore:
+      - "&4ᴀᴛᴛᴇɴᴛɪᴏɴ ᴛᴏᴜᴛ ᴀʙᴜѕ ѕᴇʀᴀ ѕᴀɴᴄᴛɪᴏɴɴᴇ"
+      - ""
+      - "&7&l« &cAucun staff de connecté ? &8&l»"
+      - "&8• &7Votez pour sanctionner temporairement &c{player}&7."
+      - ""
+      - "&8• &7Si le vote réussit, il sera mis en sourdine"
+      - "&7et le staff sera averti pour évaluer la situation."
+      - ""
+      - "&7Lancer un vote pour sanctionner &e{player}&7."
+  cancel_item:
+    material: "RED_STAINED_GLASS_PANE"
+    name: "&c&lAnnuler"
+    lore:
+      - "&7Annuler cette procédure."
+
+# Paramètres du menu de vote (ouvert aux autres joueurs)
+vote_menu:
+  title: "Vote pour sanctionner {player}"
+  player_head_lore:
+    - "&4ᴀᴛᴛᴇɴᴛɪᴏɴ ᴛᴏᴜᴛ ᴀʙᴜѕ ѕᴇʀᴀ ѕᴀɴᴄᴛɪᴏɴɴᴇ"
+    - ""
+    - "&7&l« &cAucun staff de connecté ? &8&l»"
+    - "&8• &7Votez pour sanctionner temporairement &c{player}&7."
+    - ""
+    - "&8• &7Si le vote réussit, il sera mis en sourdine"
+    - "&7et le staff sera averti pour évaluer la situation."
+    - ""
+    - "&fVotes obtenus : &e{current_votes}&8/&6{required_votes}"
+    - ""
+
+# Intégration Discord
+discord_webhook:
+  # Mettre sur 'true' pour activer l'envoi de messages sur Discord.
+  enabled: true
+
+  # Mettre l'URL de votre webhook ici.
+  # IMPORTANT : Si cette URL est vide ou incorrecte, l'envoi échouera.
+  url: "https://discord.com/api/webhooks/ID/CHANGE_ME"
+
+  # Le nombre maximum de messages récents du joueur à stocker et à afficher.
+  last_messages_limit: 10
+
+  # --- Contenu du Message ---
+  content:
+    # Nom du bot qui envoie le message.
+    username: "SkyGuard • VoteMute"
+
+    # URL de l'avatar du bot. {player} sera remplacé par le pseudo du joueur sanctionné.
+    avatar_url: "https://cravatar.eu/helmavatar/{player}/64.png"
+
+    # --- Contenu de l'Embed (le cadre coloré) ---
+    embeds:
+      - # Titre principal de l'embed.
+        title: "Mute (Vote des joueurs)"
+
+        # Couleur de la barre latérale de l'embed (en format décimal).
+        color: 12292096 # Orange
+
+        # Description principale. {punisher_list} sera remplacé par la liste des joueurs ayant voté.
+        description: "**Joueurs ayant voté :**\n{punisher_list}"
+        
+        # --- NOUVEAU : Titres des champs (fields) ---
+        # Le plugin créera lui-même les champs, mais vous pouvez configurer leur titre ici.
+        field_title_player: "Joueur sanctionné"
+        field_title_first_join: "Première connexion"
+        field_title_last_messages: "Derniers messages"
+
+        # Pied de page de l'embed. {current_time} sera remplacé par l'heure de la sanction.
+        footer:
+          text: "SHVotePunish • {current_time}"
+
+# Messages du plugin (supporte les codes couleurs &)
+messages:
+  prefix: ""
+  player_not_found: "&7&l« &c&lSGuard &8&l» &cCe joueur n'est pas en ligne."
+  no_permission: "&7&l« &c&lSGuard &8&l» &7Vous n'avez pas la permission de faire cela."
+  cannot_punish_self: "&7&l« &c&lSGuard &8&l» &cVous ne pouvez pas vous sanctionner vous-même."
+  player_has_bypass: "&7&l« &c&lSGuard &8&l» &cVous ne pouvez pas lancer de vote contre ce joueur (immunisé)."
+  vote_already_in_progress: "&7&l« &c&lSGuard &8&l» &cUn vote est déjà en cours contre ce joueur."
+  vote_start_confirmation: "&7&l« &6&lSGuard &8&l» &7Vous êtes sur le point de lancer un vote contre &e{player}&7."
+  vote_broadcast: |-
+    &r
+    &7&l« &c&lSGuard &8&l» 
+    &c{initiator} &fa lancé un vote pour sanctionner &4{target}&7 !
+    &7• &fTapez [/votepunish {target}]&f pour participer.
+    &7&o(( Attention, les abus seront sanctionnés ! ))
+    &r 
+  vote_success: |-
+    &r
+    &7&l« &4&lSGuard &8&l»
+    &fLe vote pour sanctionner &e{player}&f est passé !
+    &fLe joueur a été sanctionné, en attendant l'intervention du staff.
+    &r
+  vote_fail: "&7&l« &c&lSGuard &8&l» &fLe vote pour sanctionner &4{player}&f a échoué &7(pas assez de votes)"
+  player_already_punished: "&7&l« &c&lSGuard &8&l» &fCe joueur a déjà été sanctionné par un vote."
+  admin_unpunish: "&7&l« &c&lSGuard &8&l» &aLe joueur {player} peut de nouveau être la cible d'un vote."
+  admin_ignore_add: "&7&l« &c&lSGuard &8&l» &7Les votes de &e{player}&7 seront désormais ignorés."
+  admin_ignore_remove: "&7&l« &a&lSGuard &8&l» &7Les votes de &e{player}&7 seront de nouveau comptabilisés."
+  log_vote_start: "[VOTE START] Initiator: {initiator}, Target: {target}"
+  log_player_vote: "[PLAYER VOTE] Voter: {voter}, Target: {target}"
+  log_vote_end: "[VOTE END] Target: {target}, Outcome: {outcome}, Votes: {current}/{required}"
+
+# --- NOUVELLE SECTION ---
+# Définissez ici les permissions que le plugin vérifiera.
+# Cela vous permet d'intégrer le plugin à votre système de permissions existant.
+# IMPORTANT: Vous devez toujours déclarer les permissions de base dans plugin.yml
+permissions:
+  use: "thesearch.search.*"
+  bypass: "shvotepunish.bypass"
+  admin: "shvotepunish.admin"
+  # Le joueur ayant cette permission ne peut pas être la cible d'un vote.
+  eligibility_bypass: "thesearch.search.*"
+
+# Liste des joueurs qui ne peuvent JAMAIS être ciblés par un vote, même sans permission de bypass.
+# Utile pour les comptes "bot" ou les admins qui ne veulent pas la perm.
+blacklisted_players:
+  - "Cry_Legende"
+  - "Enzias"
+  - "Topicfly"
