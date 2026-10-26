@@ -11,6 +11,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -80,6 +81,15 @@ public class InventoryListener implements Listener {
                     player.sendMessage("§aVotre vote a été enregistré !");
                 }
             }
+        }
+    }
+
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        // Un objet glissé sur le menu y resterait et serait perdu à la fermeture
+        InventoryHolder holder = event.getInventory().getHolder();
+        if (holder instanceof ConfirmationGUIHolder || holder instanceof VoteGUIHolder) {
+            event.setCancelled(true);
         }
     }
 

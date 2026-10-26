@@ -9,8 +9,11 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-import java.util.*;
+import java.util.Map;
+import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Gère les événements liés aux joueurs, comme le chat et la déconnexion.
@@ -46,7 +49,8 @@ public class PlayerListener implements Listener {
         String message = event.getMessage();
 
         // Récupère la liste des messages du joueur, ou en crée une nouvelle si elle n'existe pas.
-        Queue<String> messages = recentMessages.computeIfAbsent(playerUUID, k -> new LinkedList<>());
+        // File concurrente : le webhook la lit depuis un autre thread pendant que le chat y écrit
+        Queue<String> messages = recentMessages.computeIfAbsent(playerUUID, k -> new ConcurrentLinkedQueue<>());
 
         // Ajoute le nouveau message.
         messages.add(message);
@@ -92,9 +96,8 @@ public class PlayerListener implements Listener {
         // Utilise un StringBuilder pour une construction de chaîne efficace.
         StringBuilder formattedMessages = new StringBuilder();
         for (String msg : messages) {
-            // Échappe les caractères spéciaux pour JSON comme les guillemets et les backslashes
-            String sanitizedMsg = msg.replace("\\", "\\\\").replace("\"", "\\\"");
-            formattedMessages.append("`").append(sanitizedMsg).append("`\n");
+            // Pas d'échappement JSON ici : JSONObject#put s'en charge, un second passage doublait les \ et les "
+            formattedMessages.append("`").append(msg).append("`\n");
         }
         return formattedMessages.toString();
     }

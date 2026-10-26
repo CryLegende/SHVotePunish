@@ -130,13 +130,20 @@ public class VoteManager {
     }
 
     private void sendDiscordWebhook(ActiveVote vote) {
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            ConfigManager cfg = plugin.getConfigManager();
-            if (cfg.getWebhookUrl() == null || cfg.getWebhookUrl().isEmpty() || cfg.getWebhookUrl().contains("VOTRE_URL")) {
-                plugin.getLogger().warning("L'URL du Webhook Discord n'est pas configurée. Notification non envoyée.");
-                return;
-            }
+        ConfigManager cfg = plugin.getConfigManager();
+        if (cfg.getWebhookUrl() == null || cfg.getWebhookUrl().isEmpty() || cfg.getWebhookUrl().contains("VOTRE_URL")) {
+            plugin.getLogger().warning("L'URL du Webhook Discord n'est pas configurée. Notification non envoyée.");
+            return;
+        }
 
+        // Lecture des joueurs (hors ligne compris) sur le thread principal ; la tâche asynchrone ne fait que l'envoi
+        OfflinePlayer target = Bukkit.getOfflinePlayer(vote.getTargetUUID());
+        String firstJoin = new SimpleDateFormat("dd/MM/yyyy HH:mm").format(new Date(target.getFirstPlayed()));
+        String voters = vote.getVoters().stream().map(uuid -> Bukkit.getOfflinePlayer(uuid).getName()).filter(Objects::nonNull).collect(Collectors.joining(", "));
+        if (voters.isEmpty()) voters = "N/A";
+        final String punishers = voters;
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 JSONObject payload = new JSONObject();
                 payload.put("username", Optional.ofNullable(cfg.getWebhookUsername()).orElse("Alerte Plugin"));
@@ -145,11 +152,6 @@ public class VoteManager {
                 JSONObject embed = new JSONObject();
                 embed.put("title", Optional.ofNullable(cfg.getWebhookEmbedTitle()).orElse("Rapport de Sanction"));
                 embed.put("color", cfg.getWebhookEmbedColor() != 0 ? cfg.getWebhookEmbedColor() : 15158332);
-
-                OfflinePlayer target = Bukkit.getOfflinePlayer(vote.getTargetUUID());
-                String firstJoin = new SimpleDateFormat("dd/MM/yyyy HH:mm").format(new Date(target.getFirstPlayed()));
-                String punishers = vote.getVoters().stream().map(uuid -> Bukkit.getOfflinePlayer(uuid).getName()).filter(Objects::nonNull).collect(Collectors.joining(", "));
-                if (punishers.isEmpty()) punishers = "N/A";
 
                 String finalDescription = Optional.ofNullable(cfg.getWebhookEmbedDescription())
                     .orElse("**Joueurs ayant voté:**\n{punisher_list}")

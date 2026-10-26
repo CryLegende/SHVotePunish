@@ -4,7 +4,7 @@ import javax.net.ssl.HttpsURLConnection;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.net.URL;
+import java.net.URI;
 
 /**
  * Une classe utilitaire simple pour envoyer des messages à un webhook Discord.
@@ -44,10 +44,12 @@ public class DiscordWebhook {
             throw new IllegalArgumentException("Le contenu (JSON) ne peut pas être vide.");
         }
 
-        URL urlObject = new URL(this.url);
-        HttpsURLConnection connection = (HttpsURLConnection) urlObject.openConnection();
+        HttpsURLConnection connection = (HttpsURLConnection) URI.create(this.url).toURL().openConnection();
 
         try {
+            // Sans délai, une réponse qui n'arrive pas bloquerait indéfiniment un thread asynchrone du serveur
+            connection.setConnectTimeout(10_000);
+            connection.setReadTimeout(10_000);
             // Configuration de la requête POST
             connection.setRequestMethod("POST");
             connection.setDoOutput(true);
