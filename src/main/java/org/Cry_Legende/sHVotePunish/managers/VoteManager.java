@@ -2,7 +2,7 @@ package org.Cry_Legende.sHVotePunish.managers;
 
 import org.Cry_Legende.sHVotePunish.SHVotePunish;
 import org.Cry_Legende.sHVotePunish.utils.DiscordWebhook;
-import org.Cry_Legende.sHVotePunish.utils.VoteLogger;
+import org.Cry_Legende.sHVotePunish.utils.ActionLog;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -18,6 +18,8 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 public class VoteManager {
+
+    private static final String LOG_FILE = "votes";
 
     private final SHVotePunish plugin;
     private final Map<UUID, ActiveVote> activeVotes = new ConcurrentHashMap<>();
@@ -40,7 +42,7 @@ public class VoteManager {
         String logMessage = plugin.getConfigManager().getLogVoteStart()
             .replace("{initiator}", initiator.getName())
             .replace("{target}", target.getName());
-        plugin.getVoteLogger().log(logMessage); // Utilise le logger de fichier
+        ActionLog.write(plugin, LOG_FILE, logMessage);
 
         BukkitTask expirationTask = new BukkitRunnable() {
             @Override
@@ -66,7 +68,7 @@ public class VoteManager {
         String logMessage = plugin.getConfigManager().getLogPlayerVote()
             .replace("{voter}", voter.getName())
             .replace("{target}", target.getName());
-        plugin.getVoteLogger().log(logMessage); // Utilise le logger de fichier
+        ActionLog.write(plugin, LOG_FILE, logMessage);
 
         if (vote.isSuccessful()) {
             endVote(vote, true);
@@ -91,7 +93,7 @@ public class VoteManager {
             .replace("{current}", String.valueOf(vote.getCurrentVotes()))
             .replace("{required}", String.valueOf(vote.getRequiredVotes()))
             + " | Votants: [" + punishers + "]";
-        plugin.getVoteLogger().log(logMessage); // Utilise le logger de fichier
+        ActionLog.write(plugin, LOG_FILE, logMessage);
 
         if (success) {
             plugin.getServer().broadcastMessage(cfg.getVoteSuccessMessage().replace("{player}", vote.getTargetName()));

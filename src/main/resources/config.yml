@@ -1,6 +1,24 @@
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-# Configuration de SHVotePunish #
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+# ----------------------------------------------------------------#
+#                  Configuration de SHVotePunish                  #
+# ----------------------------------------------------------------#
+#
+# Sanction par vote de la communauté : un joueur lance un vote contre un autre joueur, les autres votent
+# depuis un menu, et quand assez de votes sont réunis la commande de sanction est lancée. Le résultat est
+# annoncé sur Discord (webhook) et le déroulement du vote est écrit dans le fichier votes de SHLogs.
+#
+# Commandes (alias /punish) :
+#   /votepunish <joueur>             Lance un vote contre le joueur, ou ouvre le menu du vote en cours.
+#   /votepunish ignore <joueur>      Interdit au joueur de participer aux votes.
+#   /votepunish unignore <joueur>    Autorise de nouveau le joueur à participer aux votes.
+#   /votepunish unpunish <joueur>    Permet de nouveau un vote contre un joueur déjà sanctionné.
+#
+# Permissions (noms réglables dans la section permissions, vérifiées avec Vault) :
+#   use                  Lancer un vote et voter.
+#   admin                Utiliser ignore, unignore et unpunish.
+#   bypass               Ne peut pas être la cible d'un vote.
+#   eligibility_bypass   Ne peut pas être la cible d'un vote.
+#
+# Les textes sont dans la section messages et dans les sections de menus.
 
 # Paramètres généraux du vote
 vote:
@@ -16,7 +34,7 @@ vote:
   # Si 'PERCENTAGE', "value" est le pourcentage de joueurs en ligne (non-AFK) requis.
   required_votes:
     type: 'FIXED'
-    value: 3 # 50% des joueurs en ligne
+    value: 3
 
 # Paramètres du menu de confirmation (lancé par /votepunish)
 confirmation_menu:
@@ -57,11 +75,10 @@ vote_menu:
 
 # Intégration Discord
 discord_webhook:
-  # Mettre sur 'true' pour activer l'envoi de messages sur Discord.
+  # Envoyer un message sur Discord quand un vote réussit.
   enabled: true
 
-  # Mettre l'URL de votre webhook ici.
-  # IMPORTANT : Si cette URL est vide ou incorrecte, l'envoi échouera.
+  # URL du webhook Discord. Une URL vide ou incorrecte fait échouer l'envoi.
   url: "https://discord.com/api/webhooks/ID/CHANGE_ME"
 
   # Le nombre maximum de messages récents du joueur à stocker et à afficher.
@@ -86,8 +103,7 @@ discord_webhook:
         # Description principale. {punisher_list} sera remplacé par la liste des joueurs ayant voté.
         description: "**Joueurs ayant voté :**\n{punisher_list}"
         
-        # --- NOUVEAU : Titres des champs (fields) ---
-        # Le plugin créera lui-même les champs, mais vous pouvez configurer leur titre ici.
+        # Titres des champs de l'embed (le plugin crée lui-même les champs).
         field_title_player: "Joueur sanctionné"
         field_title_first_join: "Première connexion"
         field_title_last_messages: "Derniers messages"
@@ -127,19 +143,18 @@ messages:
   log_player_vote: "[PLAYER VOTE] Voter: {voter}, Target: {target}"
   log_vote_end: "[VOTE END] Target: {target}, Outcome: {outcome}, Votes: {current}/{required}"
 
-# --- NOUVELLE SECTION ---
-# Définissez ici les permissions que le plugin vérifiera.
-# Cela vous permet d'intégrer le plugin à votre système de permissions existant.
-# IMPORTANT: Vous devez toujours déclarer les permissions de base dans plugin.yml
+# Permissions vérifiées par le plugin.
 permissions:
+  # Lancer un vote et voter.
   use: "thesearch.search.*"
+  # Ne peut pas être la cible d'un vote.
   bypass: "shvotepunish.bypass"
+  # Utiliser /votepunish ignore, unignore et unpunish.
   admin: "shvotepunish.admin"
-  # Le joueur ayant cette permission ne peut pas être la cible d'un vote.
+  # Ne peut pas être la cible d'un vote.
   eligibility_bypass: "thesearch.search.*"
 
-# Liste des joueurs qui ne peuvent JAMAIS être ciblés par un vote, même sans permission de bypass.
-# Utile pour les comptes "bot" ou les admins qui ne veulent pas la perm.
+# Joueurs qui ne peuvent jamais être la cible d'un vote, même sans permission de bypass.
 blacklisted_players:
   - "Cry_Legende"
   - "Enzias"

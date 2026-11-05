@@ -21,6 +21,7 @@ Utilisé sur : **Opale**.
 ## Dépendances
 
 - Obligatoires : `Vault`
+- Optionnelle : `SHLogs`
 
 ## Commandes
 
@@ -36,6 +37,8 @@ Fichiers par défaut repris du serveur (secrets remplacés par `CHANGE_ME`). Cli
 plugins/SHVotePunish/
 └── <a href="src/main/resources/config.yml">config.yml</a>
 </pre>
+
+Le début, la participation et le résultat de chaque vote sont écrits dans le fichier `votes` du dossier `SHVotePunish` de SHLogs (`plugins/SHLogs/`), avec les lignes `log_*` de la section `messages`. Sans SHLogs, elles passent dans la console.
 
 ## Compilation
 

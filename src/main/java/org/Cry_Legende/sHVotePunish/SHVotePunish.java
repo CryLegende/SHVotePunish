@@ -6,7 +6,6 @@ import org.Cry_Legende.sHVotePunish.listeners.InventoryListener;
 import org.Cry_Legende.sHVotePunish.listeners.PlayerListener;
 import org.Cry_Legende.sHVotePunish.managers.ConfigManager;
 import org.Cry_Legende.sHVotePunish.managers.VoteManager;
-import org.Cry_Legende.sHVotePunish.utils.VoteLogger;
 import net.milkbowl.vault.permission.Permission;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
@@ -25,7 +24,6 @@ public final class SHVotePunish extends JavaPlugin {
     private VoteManager voteManager;
     private Storage storage;
     private PlayerListener playerListener;
-    private VoteLogger voteLogger; // Variable pour le nouveau logger
 
     private static Permission perms = null;
 
@@ -39,7 +37,6 @@ public final class SHVotePunish extends JavaPlugin {
         this.storage = new Storage(this);
         this.voteManager = new VoteManager(this);
         this.playerListener = new PlayerListener(this);
-        this.voteLogger = new VoteLogger(this); // Initialisation du logger de vote
 
         // 2. Essayer de s'accrocher à l'API de permissions de Vault
         if (!setupPermissions()) {
@@ -117,8 +114,4 @@ public final class SHVotePunish extends JavaPlugin {
     public PlayerListener getPlayerListener() {
         return playerListener;
     }
-
-    public VoteLogger getVoteLogger() {
-        return voteLogger;
-    } // Getter pour le nouveau logger
 }
