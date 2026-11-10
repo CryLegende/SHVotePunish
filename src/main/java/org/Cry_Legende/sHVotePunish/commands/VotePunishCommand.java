@@ -5,6 +5,7 @@ import org.Cry_Legende.sHVotePunish.data.Storage;
 import org.Cry_Legende.sHVotePunish.managers.ConfigManager;
 import org.Cry_Legende.sHVotePunish.managers.GUIManager;
 import org.Cry_Legende.sHVotePunish.managers.VoteManager;
+import org.Cry_Legende.sHVotePunish.network.NetworkVotes;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
@@ -59,6 +60,17 @@ public class VotePunishCommand implements CommandExecutor {
             return true;
         }
 
+        // "import" est réservé à l'administration ; pour les autres joueurs c'est un pseudo comme un autre
+        if (args[0].equalsIgnoreCase("import") && plugin.hasPermission(player, configManager.getAdminPermission())) {
+            NetworkVotes network = plugin.getNetworkVotes();
+            if (network == null) {
+                player.sendMessage(configManager.getImportUnavailableMessage());
+            } else {
+                network.importLists(player);
+            }
+            return true;
+        }
+
         // --- Processus principal ---
         if (!plugin.hasPermission(player, configManager.getUsePermission())) {
             player.sendMessage(configManager.getNoPermissionMessage());
@@ -72,6 +84,11 @@ public class VotePunishCommand implements CommandExecutor {
 
         Player target = Bukkit.getPlayerExact(args[0]);
         if (target == null) {
+            // Avec SHNetwork, le joueur peut être sur un autre serveur : le serveur qui le porte vérifie et répond
+            NetworkVotes network = plugin.getNetworkVotes();
+            if (network != null && network.handleRemote(player, args[0])) {
+                return true;
+            }
             player.sendMessage(configManager.getPlayerNotFoundMessage());
             return true;
         }
@@ -129,27 +146,44 @@ public class VotePunishCommand implements CommandExecutor {
             return;
         }
 
+        String subCommand = args[0].toLowerCase();
+
+        NetworkVotes network = plugin.getNetworkVotes();
+        if (network != null) {
+            // Avec SHNetwork, le joueur est cherché sur tout le réseau, sans interroger Mojang ni les fichiers de ce serveur
+            network.resolvePlayer(args[1], (uuid, name) -> {
+                if (!player.isOnline()) return;
+                if (uuid == null) {
+                    player.sendMessage(configManager.getUnknownPlayerNetworkMessage().replace("{player}", args[1]));
+                    return;
+                }
+                applyAdminCommand(player, subCommand, uuid, name);
+            });
+            return;
+        }
+
         OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
         if (!target.hasPlayedBefore() && !target.isOnline()) {
             player.sendMessage(configManager.getPrefix() + "§cLe joueur '" + args[1] + "' n'a jamais été vu sur ce serveur.");
             return;
         }
 
-        UUID targetUUID = target.getUniqueId();
-        String subCommand = args[0].toLowerCase();
+        applyAdminCommand(player, subCommand, target.getUniqueId(), target.getName());
+    }
 
+    private void applyAdminCommand(Player player, String subCommand, UUID targetUUID, String targetName) {
         switch (subCommand) {
             case "ignore":
-                storage.addIgnoredPlayer(targetUUID);
-                player.sendMessage(configManager.getAdminIgnoreAddMessage().replace("{player}", target.getName()));
+                storage.addIgnoredPlayer(targetUUID, targetName);
+                player.sendMessage(configManager.getAdminIgnoreAddMessage().replace("{player}", targetName));
                 break;
             case "unignore":
                 storage.removeIgnoredPlayer(targetUUID);
-                player.sendMessage(configManager.getAdminIgnoreRemoveMessage().replace("{player}", target.getName()));
+                player.sendMessage(configManager.getAdminIgnoreRemoveMessage().replace("{player}", targetName));
                 break;
             case "unpunish": // NOUVEAU
                 storage.removePunishedPlayer(targetUUID);
-                player.sendMessage(configManager.getAdminUnpunishMessage().replace("{player}", target.getName()));
+                player.sendMessage(configManager.getAdminUnpunishMessage().replace("{player}", targetName));
                 break;
         }
     }

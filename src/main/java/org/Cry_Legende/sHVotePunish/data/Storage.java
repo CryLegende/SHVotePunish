@@ -10,12 +10,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 /**
  * Gère le stockage persistant des données du plugin, comme les joueurs ignorés et sanctionnés.
  * Utilise des fichiers dédiés : ignored_players.yml et punished_players.yml.
+ *
+ * <p>Avec SHNetwork (voir {@link #useSharedLists}), les listes vivent dans la base commune à tous les serveurs : les
+ * fichiers ne sont plus écrits et les ensembles en mémoire suivent la base.</p>
  */
 public class Storage {
 
@@ -27,9 +32,13 @@ public class Storage {
     private File punishedFile;
     private FileConfiguration punishedConfig;
 
-    // Utiliser des Sets pour des recherches rapides (O(1) en moyenne)
-    private final Set<UUID> ignoredPlayers = new HashSet<>();
-    private final Set<UUID> punishedPlayers = new HashSet<>(); // NOUVEAU: Cache pour les joueurs sanctionnés
+    // Utiliser des Sets pour des recherches rapides (O(1) en moyenne).
+    // Ensembles sûrs entre fils : en mode réseau, la base et le bus les mettent à jour hors du fil principal.
+    private final Set<UUID> ignoredPlayers = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> punishedPlayers = ConcurrentHashMap.newKeySet(); // NOUVEAU: Cache pour les joueurs sanctionnés
+
+    /** Base partagée du mode réseau ; null sur un serveur seul. */
+    private volatile SharedLists shared;
 
     public Storage(SHVotePunish plugin) {
         this.plugin = plugin;
@@ -131,14 +140,28 @@ public class Storage {
     // --- Gestion des joueurs ignorés ---
 
     public void addIgnoredPlayer(UUID uuid) {
+        addIgnoredPlayer(uuid, null);
+    }
+
+    public void addIgnoredPlayer(UUID uuid, String name) {
         if (ignoredPlayers.add(uuid)) {
-            saveIgnored();
+            SharedLists lists = shared;
+            if (lists != null) {
+                lists.add(SharedLists.Kind.IGNORED, uuid, name);
+            } else {
+                saveIgnored();
+            }
         }
     }
 
     public void removeIgnoredPlayer(UUID uuid) {
         if (ignoredPlayers.remove(uuid)) {
-            saveIgnored();
+            SharedLists lists = shared;
+            if (lists != null) {
+                lists.remove(SharedLists.Kind.IGNORED, uuid);
+            } else {
+                saveIgnored();
+            }
         }
     }
 
@@ -155,8 +178,17 @@ public class Storage {
      * @param uuid L'UUID du joueur à ajouter.
      */
     public void addPunishedPlayer(UUID uuid) {
+        addPunishedPlayer(uuid, null);
+    }
+
+    public void addPunishedPlayer(UUID uuid, String name) {
         if (punishedPlayers.add(uuid)) {
-            savePunished();
+            SharedLists lists = shared;
+            if (lists != null) {
+                lists.add(SharedLists.Kind.PUNISHED, uuid, name);
+            } else {
+                savePunished();
+            }
         }
     }
 
@@ -167,7 +199,12 @@ public class Storage {
      */
     public void removePunishedPlayer(UUID uuid) {
         if (punishedPlayers.remove(uuid)) {
-            savePunished();
+            SharedLists lists = shared;
+            if (lists != null) {
+                lists.remove(SharedLists.Kind.PUNISHED, uuid);
+            } else {
+                savePunished();
+            }
         }
     }
 
@@ -179,5 +216,61 @@ public class Storage {
      */
     public boolean isPlayerPunished(UUID uuid) {
         return punishedPlayers.contains(uuid);
+    }
+
+    // --- Mode réseau ---
+
+    /** Passe les listes sur la base commune (ou les rend aux fichiers avec null). */
+    public void useSharedLists(SharedLists lists) {
+        this.shared = lists;
+    }
+
+    /**
+     * Mode réseau : décide si ce vote est celui qui sanctionne le joueur. Vrai pour un seul appel sur tout le réseau ;
+     * le joueur est alors inscrit dans la liste des sanctionnés, ici et en base.
+     */
+    public CompletableFuture<Boolean> claimPunished(UUID uuid, String name) {
+        SharedLists lists = shared;
+        if (lists == null) {
+            return CompletableFuture.completedFuture(punishedPlayers.add(uuid));
+        }
+        return PunishClaim.claim(punishedPlayers, lists, uuid, name);
+    }
+
+    /** Mode réseau : applique un changement venu d'un autre serveur, sans le réécrire en base. */
+    public void applyShared(SharedLists.Kind kind, UUID uuid, boolean present) {
+        Set<UUID> set = set(kind);
+        if (present) {
+            set.add(uuid);
+        } else {
+            set.remove(uuid);
+        }
+    }
+
+    /** Mode réseau : aligne la liste sur la base. Les entrées nouvelles arrivent avant que les autres partent : jamais de liste vide entre deux. */
+    public void replaceShared(SharedLists.Kind kind, Set<UUID> fresh) {
+        Set<UUID> set = set(kind);
+        set.addAll(fresh);
+        set.retainAll(fresh);
+    }
+
+    /** Contenu actuel du fichier d'une liste, pour l'importer dans la base du réseau. */
+    public Set<UUID> readFile(SharedLists.Kind kind) {
+        FileConfiguration config = kind == SharedLists.Kind.IGNORED
+            ? YamlConfiguration.loadConfiguration(ignoredFile)
+            : YamlConfiguration.loadConfiguration(punishedFile);
+        Set<UUID> out = new HashSet<>();
+        for (String text : config.getStringList(kind == SharedLists.Kind.IGNORED ? "ignored-players" : "punished-players")) {
+            try {
+                out.add(UUID.fromString(text));
+            } catch (IllegalArgumentException e) {
+                plugin.getLogger().warning("UUID invalide '" + text + "' ignoré à l'importation.");
+            }
+        }
+        return out;
+    }
+
+    private Set<UUID> set(SharedLists.Kind kind) {
+        return kind == SharedLists.Kind.IGNORED ? ignoredPlayers : punishedPlayers;
     }
 }

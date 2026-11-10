@@ -5,6 +5,7 @@ import org.Cry_Legende.sHVotePunish.managers.ConfirmationGUIHolder;
 import org.Cry_Legende.sHVotePunish.managers.GUIManager;
 import org.Cry_Legende.sHVotePunish.managers.VoteGUIHolder;
 import org.Cry_Legende.sHVotePunish.managers.VoteManager;
+import org.Cry_Legende.sHVotePunish.network.NetworkVotes;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -54,8 +55,15 @@ public class InventoryListener implements Listener {
                     String targetUUIDString = container.get(GUIManager.CONFIRM_BUTTON_KEY, PersistentDataType.STRING);
                     if (targetUUIDString == null) return;
 
-                    Player target = Bukkit.getPlayer(UUID.fromString(targetUUIDString));
+                    UUID targetId = UUID.fromString(targetUUIDString);
+                    Player target = Bukkit.getPlayer(targetId);
                     if (target == null) {
+                        // Avec SHNetwork, la cible peut être sur un autre serveur : le vote est demandé au serveur qui la porte
+                        NetworkVotes network = plugin.getNetworkVotes();
+                        if (network != null && network.startRemote(player, targetId)) {
+                            player.closeInventory();
+                            return;
+                        }
                         player.sendMessage(plugin.getConfigManager().getPlayerNotFoundMessage());
                         player.closeInventory();
                         return;
@@ -70,14 +78,16 @@ public class InventoryListener implements Listener {
                     String targetUUIDString = container.get(GUIManager.VOTE_BUTTON_KEY, PersistentDataType.STRING);
                     if (targetUUIDString == null) return;
 
-                    Player target = Bukkit.getPlayer(UUID.fromString(targetUUIDString));
-                    if (target == null || !voteManager.isVoteInProgress(target.getUniqueId())) {
+                    UUID targetId = UUID.fromString(targetUUIDString);
+                    Player target = Bukkit.getPlayer(targetId);
+                    // Sans réseau, une cible absente a mis fin au vote ; avec SHNetwork elle peut être sur un autre serveur
+                    if ((target == null && !voteManager.isNetworkVote(targetId)) || !voteManager.isVoteInProgress(targetId)) {
                         player.sendMessage("§cCe vote est terminé.");
                         player.closeInventory();
                         return;
                     }
                     player.closeInventory();
-                    voteManager.addVote(player, target);
+                    voteManager.addVote(player, targetId);
                     player.sendMessage("§aVotre vote a été enregistré !");
                 }
             }

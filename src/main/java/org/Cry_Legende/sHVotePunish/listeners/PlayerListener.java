@@ -70,15 +70,27 @@ public class PlayerListener implements Listener {
         UUID playerUUID = player.getUniqueId();
 
         // Si le joueur qui se déconnecte est la cible d'un vote, on annule le vote.
+        // Avec SHNetwork, une sortie peut n'être qu'un changement de serveur : le serveur qui porte le vote
+        // surveille la présence de la cible sur le réseau (NetworkVotes) et l'annule seulement si elle est partie.
+        boolean network = plugin.getNetworkVotes() != null;
         VoteManager.ActiveVote vote = voteManager.getActiveVote(playerUUID);
-        if (vote != null) {
+        if (vote != null && !network) {
             voteManager.endVote(vote, false); // Annule le vote, le considérant comme un échec.
-            plugin.getServer().broadcastMessage(plugin.getConfigManager().getPrefix() +
-                "§cLe vote contre §e" + player.getName() + "§c a été annulé car il s'est déconnecté.");
+            plugin.getServer().broadcastMessage(voteManager.cancelledMessage(player.getName()));
+        }
+
+        // Les derniers messages de la cible d'un vote porté ici restent pour le webhook (réseau : elle a pu changer de serveur)
+        if (network && vote != null && !vote.isMirror()) {
+            return;
         }
 
         // Nettoie les messages stockés pour le joueur qui se déconnecte pour libérer de la mémoire.
         recentMessages.remove(playerUUID);
+    }
+
+    /** Oublie les derniers messages d'un joueur (vote terminé alors qu'il n'est plus sur ce serveur). */
+    public void forget(UUID uuid) {
+        recentMessages.remove(uuid);
     }
 
     /**

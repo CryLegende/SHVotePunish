@@ -13,6 +13,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -40,20 +41,31 @@ public class GUIManager {
      * @param target    Le joueur ciblé par le vote.
      */
     public void openConfirmationMenu(Player initiator, Player target) {
-        String title = configManager.getConfirmationMenuTitle().replace("{player}", target.getName());
+        openConfirmationMenu(initiator, target.getUniqueId(), target.getName());
+    }
+
+    /**
+     * Ouvre le menu de confirmation, la cible pouvant être sur un autre serveur (mode réseau).
+     *
+     * @param initiator  Le joueur qui lance la commande.
+     * @param targetId   UUID du joueur ciblé par le vote.
+     * @param targetName Pseudo du joueur ciblé.
+     */
+    public void openConfirmationMenu(Player initiator, UUID targetId, String targetName) {
+        String title = configManager.getConfirmationMenuTitle().replace("{player}", targetName);
         Inventory inv = Bukkit.createInventory(new ConfirmationGUIHolder(), 27, title);
 
         // Tête du joueur cible
-        inv.setItem(13, createPlayerHead(target, "§e§l" + target.getName(), new ArrayList<>()));
+        inv.setItem(13, createPlayerHead(targetId, targetName, "§e§l" + targetName, new ArrayList<>()));
 
         // Bouton Confirmer
         ItemStack confirmItem = createGuiItem(
             Material.matchMaterial(configManager.getConfirmItemMaterial()),
             configManager.getConfirmItemName(),
-            replacePlaceholders(configManager.getConfirmItemLore(), target.getName())
+            replacePlaceholders(configManager.getConfirmItemLore(), targetName)
         );
         ItemMeta confirmMeta = confirmItem.getItemMeta();
-        confirmMeta.getPersistentDataContainer().set(CONFIRM_BUTTON_KEY, PersistentDataType.STRING, target.getUniqueId().toString());
+        confirmMeta.getPersistentDataContainer().set(CONFIRM_BUTTON_KEY, PersistentDataType.STRING, targetId.toString());
         confirmItem.setItemMeta(confirmMeta);
         inv.setItem(11, confirmItem);
 
@@ -61,7 +73,7 @@ public class GUIManager {
         ItemStack cancelItem = createGuiItem(
             Material.matchMaterial(configManager.getCancelItemMaterial()),
             configManager.getCancelItemName(),
-            replacePlaceholders(configManager.getCancelItemLore(), target.getName())
+            replacePlaceholders(configManager.getCancelItemLore(), targetName)
         );
         inv.setItem(15, cancelItem);
 
@@ -92,8 +104,8 @@ public class GUIManager {
      * @param vote   L'instance du vote en cours.
      */
     public void updateVoteMenu(Player viewer, Inventory inv, VoteManager.ActiveVote vote) {
-        Player target = Bukkit.getPlayer(vote.getTargetUUID());
-        if (target == null) return;
+        // Sans réseau, un vote dont la cible n'est plus là n'a plus de menu. Avec SHNetwork, la cible peut être sur un autre serveur.
+        if (!vote.isNetworked() && Bukkit.getPlayer(vote.getTargetUUID()) == null) return;
 
         // Tête du joueur avec les stats du vote
         List<String> lore = configManager.getVoteMenuPlayerHeadLore().stream()
@@ -101,7 +113,7 @@ public class GUIManager {
                 .replace("{current_votes}", String.valueOf(vote.getCurrentVotes()))
                 .replace("{required_votes}", String.valueOf(vote.getRequiredVotes())))
             .collect(Collectors.toList());
-        inv.setItem(13, createPlayerHead(target, "§eInformations sur " + vote.getTargetName(), lore));
+        inv.setItem(13, createPlayerHead(vote.getTargetUUID(), vote.getTargetName(), "§eInformations sur " + vote.getTargetName(), lore));
 
         // Bouton pour voter "OUI" ou indiquer que le joueur a déjà voté
         if (vote.hasVoted(viewer.getUniqueId())) {
@@ -130,12 +142,18 @@ public class GUIManager {
         return item;
     }
 
-    private ItemStack createPlayerHead(Player player, String name, List<String> lore) {
+    /** Tête du joueur : celle de sa peau s'il est sur ce serveur, sinon une tête à son nom (cible d'un autre serveur). */
+    private ItemStack createPlayerHead(UUID id, String name, String title, List<String> lore) {
+        Player player = Bukkit.getPlayer(id);
         ItemStack item = new ItemStack(Material.PLAYER_HEAD, 1);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         if (meta != null) {
-            meta.setOwningPlayer(player);
-            meta.setDisplayName(name);
+            if (player != null) {
+                meta.setOwningPlayer(player);
+            } else {
+                meta.setPlayerProfile(Bukkit.createProfile(id, name));
+            }
+            meta.setDisplayName(title);
             meta.setLore(lore);
             item.setItemMeta(meta);
         }

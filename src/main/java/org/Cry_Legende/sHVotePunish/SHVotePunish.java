@@ -6,7 +6,13 @@ import org.Cry_Legende.sHVotePunish.listeners.InventoryListener;
 import org.Cry_Legende.sHVotePunish.listeners.PlayerListener;
 import org.Cry_Legende.sHVotePunish.managers.ConfigManager;
 import org.Cry_Legende.sHVotePunish.managers.VoteManager;
+import org.Cry_Legende.sHVotePunish.network.NetBus;
+import org.Cry_Legende.sHVotePunish.network.NetworkVotes;
+import org.Cry_Legende.sHVotePunish.network.ShNetworkBus;
+import org.Cry_Legende.sHVotePunish.network.VoteDatabase;
 import net.milkbowl.vault.permission.Permission;
+import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -24,6 +30,9 @@ public final class SHVotePunish extends JavaPlugin {
     private VoteManager voteManager;
     private Storage storage;
     private PlayerListener playerListener;
+
+    /** Mode réseau (SHNetwork) : null sur un serveur seul. */
+    private NetworkVotes networkVotes;
 
     private static Permission perms = null;
 
@@ -55,6 +64,9 @@ public final class SHVotePunish extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new InventoryListener(this), this);
         getServer().getPluginManager().registerEvents(this.playerListener, this);
 
+        // 4. Votes et listes partagés entre les serveurs, si SHNetwork est là
+        enableNetwork();
+
         getLogger().info("SHVotePunish a été activé avec succès !");
     }
 
@@ -63,7 +75,44 @@ public final class SHVotePunish extends JavaPlugin {
         if (this.voteManager != null) {
             this.voteManager.cancelAllVotes();
         }
+        if (this.networkVotes != null) {
+            this.networkVotes.close();
+        }
         getLogger().info("SHVotePunish a été désactivé.");
+    }
+
+    /**
+     * Passe en mode réseau si SHNetwork est installé et 'reseau.actif' est vrai. Les classes qui touchent à SHNetwork
+     * ne sont résolues qu'ici : sans lui, rien n'est chargé et le plugin garde son fonctionnement d'origine.
+     */
+    private void enableNetwork() {
+        FileConfiguration config = getConfig();
+        if (!config.getBoolean("reseau.actif", true)) return;
+        if (!Bukkit.getPluginManager().isPluginEnabled("SHNetwork")) return;
+        VoteDatabase db = null;
+        try {
+            NetBus bus = ShNetworkBus.open();
+            db = new VoteDatabase(
+                config.getString("reseau.base-de-donnees.url"),
+                config.getString("reseau.base-de-donnees.utilisateur"),
+                config.getString("reseau.base-de-donnees.mot-de-passe"),
+                Math.max(250, config.getInt("reseau.base-de-donnees.delai-ms", 3000)),
+                config.getString("reseau.joueurs-connus.table", "Global.sh_track_firstseen"));
+            NetworkVotes net = new NetworkVotes(this, bus, db,
+                config.getString("reseau.canal", "votepunish"),
+                Math.max(100, config.getLong("reseau.delai-reponse-ms", 2000L)),
+                Math.max(1, config.getLong("reseau.absence-max-secondes", 4L)) * 1000L);
+            networkVotes = net;
+            voteManager.attachNetwork(net);
+            net.start(config.getLong("reseau.rechargement-listes-secondes", 120L));
+            getLogger().info("SHNetwork détecté : un vote par joueur visé pour tout le réseau, listes en base.");
+        } catch (RuntimeException | LinkageError e) {
+            networkVotes = null;
+            voteManager.attachNetwork(null);
+            storage.useSharedLists(null);
+            if (db != null) db.close();
+            getLogger().log(Level.SEVERE, "SHNetwork présent mais inutilisable, votes locaux à ce serveur : " + e);
+        }
     }
 
     private boolean setupPermissions() {
@@ -113,5 +162,10 @@ public final class SHVotePunish extends JavaPlugin {
 
     public PlayerListener getPlayerListener() {
         return playerListener;
+    }
+
+    /** Vote en réseau avec SHNetwork, ou null si le plugin tourne seul sur ce serveur. */
+    public NetworkVotes getNetworkVotes() {
+        return networkVotes;
     }
 }

@@ -67,6 +67,10 @@ public class ConfigManager {
     private String adminIgnoreRemove;
     private String playerAlreadyPunished; // NOUVEAU
     private String adminUnpunish;         // NOUVEAU
+    private String importSuccess;
+    private String importUnavailable;
+    private String importError;
+    private String unknownPlayerNetwork;
 
     // Logs
     private String logVoteStart;
@@ -142,6 +146,11 @@ public class ConfigManager {
         // NOUVEAU
         playerAlreadyPunished = prefix + translateColors(config.getString("messages.player_already_punished", "&cCe joueur a déjà été sanctionné par un vote."));
         adminUnpunish = prefix + translateColors(config.getString("messages.admin_unpunish", "&aLe joueur {player} peut de nouveau être la cible d'un vote."));
+        // Mode réseau (SHNetwork)
+        importSuccess = prefix + translateColors(config.getString("messages.import_success", "&7&l« &a&lSGuard &8&l» &a{imported}&7 joueurs importés dans la base du réseau (&a{present}&7 déjà présents)."));
+        importUnavailable = prefix + translateColors(config.getString("messages.import_unavailable", "&7&l« &6&lSGuard &8&l» &7L'importation ne sert qu'&6avec SHNetwork&7 : ce serveur garde les listes dans ses fichiers."));
+        importError = prefix + translateColors(config.getString("messages.import_error", "&7&l« &c&lSGuard &8&l» &7Importation &céchouée&7 : base injoignable, voir la console."));
+        unknownPlayerNetwork = prefix + translateColors(config.getString("messages.unknown_player_network", "&7&l« &c&lSGuard &8&l» &cLe joueur &e{player}&c n'a jamais été vu sur le réseau."));
 
 
         // Logs
@@ -335,6 +344,22 @@ public class ConfigManager {
     public String getAdminUnpunishMessage() {
         return adminUnpunish;
     }                 // NOUVEAU
+
+    public String getImportSuccessMessage() {
+        return importSuccess;
+    }
+
+    public String getImportUnavailableMessage() {
+        return importUnavailable;
+    }
+
+    public String getImportErrorMessage() {
+        return importError;
+    }
+
+    public String getUnknownPlayerNetworkMessage() {
+        return unknownPlayerNetwork;
+    }
 
     // Logs
     public String getLogVoteStart() {

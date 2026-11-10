@@ -5,16 +5,20 @@
 # Sanction par vote de la communauté : un joueur lance un vote contre un autre joueur, les autres votent
 # depuis un menu, et quand assez de votes sont réunis la commande de sanction est lancée. Le résultat est
 # annoncé sur Discord (webhook) et le déroulement du vote est écrit dans le fichier votes de SHLogs.
+# Avec SHNetwork, les votes, les menus et les listes valent pour tous les serveurs Opale (voir la section
+# 'reseau' en bas du fichier).
 #
 # Commandes (alias /punish) :
 #   /votepunish <joueur>             Lance un vote contre le joueur, ou ouvre le menu du vote en cours.
 #   /votepunish ignore <joueur>      Interdit au joueur de participer aux votes.
 #   /votepunish unignore <joueur>    Autorise de nouveau le joueur à participer aux votes.
 #   /votepunish unpunish <joueur>    Permet de nouveau un vote contre un joueur déjà sanctionné.
+#   /votepunish import               Avec SHNetwork : copie ignored_players.yml et punished_players.yml dans la base
+#                                    du réseau, sans toucher aux joueurs déjà inscrits.
 #
 # Permissions (noms réglables dans la section permissions, vérifiées avec Vault) :
 #   use                  Lancer un vote et voter.
-#   admin                Utiliser ignore, unignore et unpunish.
+#   admin                Utiliser ignore, unignore, unpunish et import.
 #   bypass               Ne peut pas être la cible d'un vote.
 #   eligibility_bypass   Ne peut pas être la cible d'un vote.
 #
@@ -139,6 +143,10 @@ messages:
   admin_unpunish: "&7&l« &c&lSGuard &8&l» &aLe joueur {player} peut de nouveau être la cible d'un vote."
   admin_ignore_add: "&7&l« &c&lSGuard &8&l» &7Les votes de &e{player}&7 seront désormais ignorés."
   admin_ignore_remove: "&7&l« &a&lSGuard &8&l» &7Les votes de &e{player}&7 seront de nouveau comptabilisés."
+  unknown_player_network: "&7&l« &c&lSGuard &8&l» &cLe joueur &e{player}&c n'a jamais été vu sur le réseau."
+  import_success: "&7&l« &a&lSGuard &8&l» &a{imported}&7 joueurs importés dans la base du réseau (&a{present}&7 déjà présents)."
+  import_unavailable: "&7&l« &6&lSGuard &8&l» &7L'importation ne sert qu'&6avec SHNetwork&7 : ce serveur garde les listes dans ses fichiers."
+  import_error: "&7&l« &c&lSGuard &8&l» &7Importation &céchouée&7 : base injoignable, voir la console."
   log_vote_start: "[VOTE START] Initiator: {initiator}, Target: {target}"
   log_player_vote: "[PLAYER VOTE] Voter: {voter}, Target: {target}"
   log_vote_end: "[VOTE END] Target: {target}, Outcome: {outcome}, Votes: {current}/{required}"
@@ -159,3 +167,37 @@ blacklisted_players:
   - "Cry_Legende"
   - "Enzias"
   - "Topicfly"
+
+# Mode réseau, avec SHNetwork (sans lui, chaque serveur garde ses votes et ses fichiers comme avant).
+# Le vote contre un joueur est porté par le serveur où il se trouve au lancement : il compte les votes des joueurs de
+# tous les serveurs, applique les immunités avec les vraies permissions du joueur et lance la sanction. Les autres
+# serveurs affichent les mêmes annonces et les mêmes menus, et envoient les votes de leurs joueurs au serveur porteur.
+# Un joueur qui change de serveur pendant un vote reste la cible : la commande de sanction s'exécute là où il est
+# (runFor de SHNetwork), une seule fois pour tout le réseau. Le pourcentage de votes requis se compte sur tous les
+# joueurs connectés au réseau. Les listes des joueurs ignorés et sanctionnés sont dans la base, plus dans
+# ignored_players.yml et punished_players.yml.
+# Demande un redémarrage : tout (actif, canal, base-de-donnees, joueurs-connus).
+reseau:
+  actif: true
+  # Canal du bus SHNetwork des votes ; les changements de listes passent sur <canal>.liste
+  canal: votepunish
+  # Temps d'attente, en millisecondes, de la réponse du serveur d'un joueur visé avant de répondre « joueur introuvable »
+  delai-reponse-ms: 2000
+  # Un vote est annulé quand sa cible reste absente du réseau pendant ce nombre de secondes. Un changement de
+  # serveur ne compte pas.
+  absence-max-secondes: 4
+  # Relecture des listes en base, en secondes, pour rattraper un message du bus perdu (0 pour ne jamais relire)
+  rechargement-listes-secondes: 120
+  # Registre de la première connexion de chaque compte (colonnes name en minuscules, display_name et first_played) :
+  # sert à reconnaître un joueur pour ignore, unignore et unpunish, et à la date du webhook
+  joueurs-connus:
+    # Table du registre, préfixée par sa base
+    table: "Global.sh_track_firstseen"
+  # Base partagée par tous les serveurs : listes dans la table votepunish_players (list, uuid, name, since)
+  base-de-donnees:
+    url: "jdbc:mariadb://127.0.0.1:3306/bo_net"
+    utilisateur: shvotepunish
+    mot-de-passe: CHANGE_ME
+    # Délai maximal de connexion et de réponse de la base, en millisecondes. Une base qui ne répond pas ne bloque
+    # jamais une sanction : elle est appliquée quand même.
+    delai-ms: 3000
