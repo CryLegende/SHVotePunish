@@ -82,13 +82,13 @@ public class InventoryListener implements Listener {
                     Player target = Bukkit.getPlayer(targetId);
                     // Sans réseau, une cible absente a mis fin au vote ; avec SHNetwork elle peut être sur un autre serveur
                     if ((target == null && !voteManager.isNetworkVote(targetId)) || !voteManager.isVoteInProgress(targetId)) {
-                        player.sendMessage("§cCe vote est terminé.");
+                        player.sendMessage(plugin.getConfigManager().get("vote_ended"));
                         player.closeInventory();
                         return;
                     }
                     player.closeInventory();
                     voteManager.addVote(player, targetId);
-                    player.sendMessage("§aVotre vote a été enregistré !");
+                    player.sendMessage(plugin.getConfigManager().get("vote_registered"));
                 }
             }
         }

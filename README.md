@@ -27,11 +27,27 @@ Utilisé sur : **Opale**. Avec `SHNetwork`, un seul vote par joueur visé vaut p
 
 | Commande | Alias | Description | Permission |
 |---|---|---|---|
-| `/votepunish <joueur>` | `/punish` | Lance un vote contre le joueur, ou ouvre le menu du vote en cours. | `permissions.use` |
-| `/votepunish ignore <joueur>` | — | Interdit au joueur de participer aux votes. | `permissions.admin` |
-| `/votepunish unignore <joueur>` | — | Autorise de nouveau le joueur à participer aux votes. | `permissions.admin` |
-| `/votepunish unpunish <joueur>` | — | Permet de nouveau un vote contre un joueur déjà sanctionné. | `permissions.admin` |
-| `/votepunish import` | — | Avec SHNetwork : copie `ignored_players.yml` et `punished_players.yml` dans la base du réseau. | `permissions.admin` |
+| `/votepunish <joueur>` | `/punish` | Lance un vote contre le joueur, ou ouvre le menu du vote en cours. | `permissions.use` (`shvotepunish.use`) |
+| `/shvotepunish ignore <joueur>` | — | Interdit au joueur de participer aux votes. | `shvotepunish.admin.ignore` |
+| `/shvotepunish unignore <joueur>` | — | Autorise de nouveau le joueur à participer aux votes. | `shvotepunish.admin.unignore` |
+| `/shvotepunish unpunish <joueur>` | — | Permet de nouveau un vote contre un joueur déjà sanctionné. | `shvotepunish.admin.unpunish` |
+| `/shvotepunish import` | — | Avec SHNetwork : copie `ignored_players.yml` et `punished_players.yml` dans la base du réseau. | `shvotepunish.admin.import` |
+| `/shvotepunish list <ignored\|punished> [page]` | — | Liste les joueurs interdits de vote, ou déjà sanctionnés par un vote. | `shvotepunish.admin.list` |
+| `/shvotepunish info <joueur>` | — | Dit pourquoi un joueur ne peut pas lancer, voter ou être visé. | `shvotepunish.admin.info` |
+| `/shvotepunish reload` | — | Relit `config.yml` et `messages.yml` ; un fichier illisible ne change rien, un vote en cours garde ses réglages, les listes ne sont jamais touchées. | `shvotepunish.admin.reload` |
+
+Les anciennes formes `/votepunish ignore|unignore|unpunish|import <joueur>` marchent toujours, avec les mêmes droits. Les sous-commandes de `/shvotepunish` marchent aussi depuis la console.
+
+## Permissions
+
+Vérifiées avec Vault ; les noms de `use`, `bypass`, `admin` et `eligibility_bypass` se règlent dans la section `permissions` du `config.yml` (valeurs par défaut ci-dessous).
+
+| Permission | Description | Par défaut |
+|---|---|---|
+| `shvotepunish.use` | Lancer un vote et voter. | `op` |
+| `shvotepunish.bypass` | Ne peut pas être la cible d'un vote. | `op` |
+| `shvotepunish.admin` | Toutes les sous-commandes de `/shvotepunish`. | `op` |
+| `shvotepunish.admin.ignore`, `.unignore`, `.unpunish`, `.import`, `.reload`, `.list`, `.info` | Une par sous-commande du même nom. | `op` |
 
 ## Mode réseau (SHNetwork)
 
@@ -50,14 +66,14 @@ Quand `SHNetwork` est installé et que `reseau.actif` vaut `true`, tous les serv
 
 La table `votepunish_players (list, uuid, name, since)` de la base `bo_net` contient les joueurs `ignored` et `punished`. Un ajout est un `INSERT IGNORE` et un retrait un `DELETE` d'un seul joueur, puis un message sur le canal `<canal>.liste` que les autres serveurs appliquent à leur mémoire. Les listes ne sont plus écrites dans les fichiers. Une relecture toutes les `reseau.rechargement-listes-secondes` secondes rattrape un message perdu.
 
-`/votepunish import` reprend les deux fichiers dans la base (à faire une fois, sur un serveur, au premier démarrage en réseau : tant que la base est vide, les joueurs déjà sanctionnés des fichiers ne sont pas pris en compte) : un joueur déjà inscrit n'est pas modifié, donc la commande peut être relancée. `ignore`, `unignore` et `unpunish` retrouvent le joueur parmi les connectés du réseau, puis dans le registre des premières connexions, sans interroger Mojang.
+`/shvotepunish import` reprend les deux fichiers dans la base (à faire une fois, sur un serveur, au premier démarrage en réseau : tant que la base est vide, les joueurs déjà sanctionnés des fichiers ne sont pas pris en compte) : un joueur déjà inscrit n'est pas modifié, donc la commande peut être relancée. `ignore`, `unignore` et `unpunish` (`/shvotepunish`) retrouvent le joueur parmi les connectés du réseau, puis dans le registre des premières connexions, sans interroger Mojang.
 
 ### Installation
 
 1. Base : `mysql -u root < sql/schema.sql` (crée `bo_net.votepunish_players` et l'utilisateur `shvotepunish`). Remplacer `CHANGE_ME` par le mot de passe.
 2. `plugins/SHVotePunish/config.yml`, section `reseau` : `url` et `mot-de-passe`. La même base sur tous les serveurs, la même configuration de vote.
 3. Poser le jar sur chaque serveur, avec SHNetwork. Le jar charge HikariCP et le pilote MariaDB par `libraries:` (le serveur ne les embarque pas) ; sans SHNetwork, ils ne sont pas utilisés.
-4. `/votepunish import` sur un serveur.
+4. `/shvotepunish import` sur un serveur.
 
 Au démarrage, la console indique `SHNetwork détecté : un vote par joueur visé pour tout le réseau`.
 
@@ -67,7 +83,8 @@ Fichiers par défaut repris du serveur (secrets remplacés par `CHANGE_ME`). Cli
 
 <pre>
 plugins/SHVotePunish/
-└── <a href="src/main/resources/config.yml">config.yml</a>
+├── <a href="src/main/resources/config.yml">config.yml</a>
+└── <a href="src/main/resources/messages.yml">messages.yml</a>
 </pre>
 
 Le début, la participation et le résultat de chaque vote sont écrits dans le fichier `votes` du dossier `SHVotePunish` de SHLogs (`plugins/SHLogs/`), avec les lignes `log_*` de la section `messages`. Sans SHLogs, elles passent dans la console.

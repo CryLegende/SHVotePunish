@@ -1,5 +1,6 @@
 package org.Cry_Legende.sHVotePunish;
 
+import org.Cry_Legende.sHVotePunish.commands.AdminCommand;
 import org.Cry_Legende.sHVotePunish.commands.VotePunishCommand;
 import org.Cry_Legende.sHVotePunish.data.Storage;
 import org.Cry_Legende.sHVotePunish.listeners.InventoryListener;
@@ -30,6 +31,8 @@ public final class SHVotePunish extends JavaPlugin {
     private VoteManager voteManager;
     private Storage storage;
     private PlayerListener playerListener;
+    // Section reseau de config.yml au démarrage : elle ne se relit pas à chaud
+    private String networkSignature;
 
     /** Mode réseau (SHNetwork) : null sur un serveur seul. */
     private NetworkVotes networkVotes;
@@ -43,6 +46,7 @@ public final class SHVotePunish extends JavaPlugin {
         // 1. Initialiser les gestionnaires
         this.configManager = new ConfigManager(this);
         configManager.loadConfig();
+        this.networkSignature = networkSignature();
         this.storage = new Storage(this);
         this.voteManager = new VoteManager(this);
         this.playerListener = new PlayerListener(this);
@@ -57,7 +61,10 @@ public final class SHVotePunish extends JavaPlugin {
 
         // 3. Enregistrer les commandes et les listeners
         try {
-            getCommand("votepunish").setExecutor(new VotePunishCommand(this));
+            AdminCommand admin = new AdminCommand(this);
+            getCommand("votepunish").setExecutor(new VotePunishCommand(this, admin));
+            getCommand("shvotepunish").setExecutor(admin);
+            getCommand("shvotepunish").setTabCompleter(admin);
         } catch (NullPointerException e) {
             getLogger().log(Level.SEVERE, "La commande 'votepunish' n'a pas pu être chargée. Vérifiez votre fichier plugin.yml.", e);
         }
@@ -113,6 +120,30 @@ public final class SHVotePunish extends JavaPlugin {
             if (db != null) db.close();
             getLogger().log(Level.SEVERE, "SHNetwork présent mais inutilisable, votes locaux à ce serveur : " + e);
         }
+    }
+
+    private String networkSignature() {
+        return String.valueOf(getConfig().getConfigurationSection("reseau") == null
+            ? "" : getConfig().getConfigurationSection("reseau").getValues(true));
+    }
+
+    /**
+     * /shvotepunish reload : relit config.yml et messages.yml. Un fichier illisible ne change rien. Les votes en cours,
+     * les listes et la base ne sont pas touchés.
+     *
+     * @return null si tout est rechargé, sinon {fichier, erreur}
+     */
+    public String[] reloadAll() {
+        String[] error = configManager.reload();
+        if (error == null) {
+            playerListener.refreshLimit();
+        }
+        return error;
+    }
+
+    /** Vrai si la section reseau de config.yml n'est plus celle du démarrage (elle demande un redémarrage). */
+    public boolean networkSettingsChanged() {
+        return !networkSignature.equals(networkSignature());
     }
 
     private boolean setupPermissions() {

@@ -2,86 +2,98 @@ package org.Cry_Legende.sHVotePunish.managers;
 
 import org.Cry_Legende.sHVotePunish.SHVotePunish;
 import org.bukkit.ChatColor;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Gère le chargement et l'accès aux valeurs du fichier config.yml.
- * Met en cache les valeurs pour un accès performant.
+ * Gère le chargement et l'accès aux valeurs de config.yml et de messages.yml.
+ * Met en cache les valeurs pour un accès performant ; /shvotepunish reload les remplace.
  */
 public class ConfigManager {
 
     private final SHVotePunish plugin;
-    private FileConfiguration config;
+    private volatile FileConfiguration config;
+    // messages.yml, avec les textes du jar pour les clés qu'il n'a pas
+    private volatile FileConfiguration messages;
 
     // --- Cached Values ---
 
     // Vote
-    private String commandOnSuccess;
-    private int voteDuration;
-    private String requiredVotesType;
-    private int requiredVotesValue;
-    private List<String> blacklistedPlayers;
+    private volatile String commandOnSuccess;
+    private volatile int voteDuration;
+    private volatile String requiredVotesType;
+    private volatile int requiredVotesValue;
+    private volatile List<String> blacklistedPlayers;
 
     // Confirmation Menu
-    private String confirmationMenuTitle;
-    private String confirmItemMaterial;
-    private String confirmItemName;
-    private List<String> confirmItemLore;
-    private String cancelItemMaterial;
-    private String cancelItemName;
-    private List<String> cancelItemLore;
+    private volatile String confirmationMenuTitle;
+    private volatile String confirmItemMaterial;
+    private volatile String confirmItemName;
+    private volatile List<String> confirmItemLore;
+    private volatile String cancelItemMaterial;
+    private volatile String cancelItemName;
+    private volatile List<String> cancelItemLore;
 
     // Vote Menu
-    private String voteMenuTitle;
-    private List<String> voteMenuPlayerHeadLore;
+    private volatile String voteMenuTitle;
+    private volatile List<String> voteMenuPlayerHeadLore;
 
     // Discord
-    private boolean webhookEnabled;
-    private String webhookUrl;
-    private int webhookLastMessagesLimit;
-    private String webhookUsername;
-    private String webhookAvatarUrl;
-    private String webhookEmbedTitle;
-    private int webhookEmbedColor;
-    private String webhookEmbedDescription;
-    private String fieldTitlePlayer;
-    private String fieldTitleFirstJoin;
-    private String fieldTitleLastMessages;
-    private String webhookEmbedFooter;
+    private volatile boolean webhookEnabled;
+    private volatile String webhookUrl;
+    private volatile int webhookLastMessagesLimit;
+    private volatile String webhookUsername;
+    private volatile String webhookAvatarUrl;
+    private volatile String webhookEmbedTitle;
+    private volatile int webhookEmbedColor;
+    private volatile String webhookEmbedDescription;
+    private volatile String fieldTitlePlayer;
+    private volatile String fieldTitleFirstJoin;
+    private volatile String fieldTitleLastMessages;
+    private volatile String webhookEmbedFooter;
 
     // Messages
-    private String prefix;
-    private String playerNotFound;
-    private String noPermission;
-    private String cannotPunishSelf;
-    private String playerHasBypass;
-    private String voteAlreadyInProgress;
-    private String voteStartConfirmation;
-    private String voteBroadcast;
-    private String voteSuccess;
-    private String voteFail;
-    private String adminIgnoreAdd;
-    private String adminIgnoreRemove;
-    private String playerAlreadyPunished; // NOUVEAU
-    private String adminUnpunish;         // NOUVEAU
-    private String importSuccess;
-    private String importUnavailable;
-    private String importError;
-    private String unknownPlayerNetwork;
+    private volatile String prefix;
+    private volatile String playerNotFound;
+    private volatile String noPermission;
+    private volatile String cannotPunishSelf;
+    private volatile String playerHasBypass;
+    private volatile String voteAlreadyInProgress;
+    private volatile String voteStartConfirmation;
+    private volatile String voteBroadcast;
+    private volatile String voteSuccess;
+    private volatile String voteFail;
+    private volatile String adminIgnoreAdd;
+    private volatile String adminIgnoreRemove;
+    private volatile String playerAlreadyPunished; // NOUVEAU
+    private volatile String adminUnpunish;         // NOUVEAU
+    private volatile String importSuccess;
+    private volatile String importUnavailable;
+    private volatile String importError;
+    private volatile String unknownPlayerNetwork;
 
     // Logs
-    private String logVoteStart;
-    private String logPlayerVote;
-    private String logVoteEnd;
+    private volatile String logVoteStart;
+    private volatile String logPlayerVote;
+    private volatile String logVoteEnd;
 
     // Permissions
-    private String permUse;
-    private String permBypass;
-    private String permAdmin;
-    private String permEligibilityBypass;
+    private volatile String permUse;
+    private volatile String permBypass;
+    private volatile String permAdmin;
+    private volatile String permEligibilityBypass;
 
 
     public ConfigManager(SHVotePunish plugin) {
@@ -92,7 +104,127 @@ public class ConfigManager {
         plugin.saveDefaultConfig();
         plugin.reloadConfig();
         this.config = plugin.getConfig();
+        migrateMessages();
+        this.messages = withDefaults(YamlConfiguration.loadConfiguration(messagesFile()));
         loadValues();
+    }
+
+    private File messagesFile() {
+        return new File(plugin.getDataFolder(), "messages.yml");
+    }
+
+    /** Ajoute au fichier lu les textes livrés avec le plugin, pour les clés qu'il n'a pas. */
+    private YamlConfiguration withDefaults(YamlConfiguration yaml) {
+        try (InputStream in = plugin.getResource("messages.yml")) {
+            if (in != null) {
+                yaml.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8)));
+            }
+        } catch (IOException e) {
+            plugin.getLogger().warning("Textes de messages.yml livrés avec le plugin illisibles : " + e.getMessage());
+        }
+        return yaml;
+    }
+
+    /**
+     * Les messages étaient dans la section messages de config.yml. Quand messages.yml n'existe pas encore, il est créé
+     * avec les textes du jar, puis chaque texte du serveur écrit dans config.yml le remplace : les textes en place sont
+     * gardés. config.yml n'est plus lu pour les messages ensuite.
+     */
+    private void migrateMessages() {
+        File file = messagesFile();
+        if (file.exists()) {
+            return;
+        }
+        plugin.saveResource("messages.yml", false);
+        ConfigurationSection legacy = config.getConfigurationSection("messages");
+        if (legacy == null) {
+            return;
+        }
+        try {
+            YamlConfiguration jar = YamlConfiguration.loadConfiguration(file);
+            List<String> lines = new ArrayList<>(Files.readAllLines(file.toPath(), StandardCharsets.UTF_8));
+            boolean changed = false;
+            for (String key : legacy.getKeys(false)) {
+                String text = legacy.getString(key);
+                if (text != null && !text.equals(jar.getString(key))) {
+                    setText(lines, key, text);
+                    changed = true;
+                }
+            }
+            if (changed) {
+                Files.write(file.toPath(), lines, StandardCharsets.UTF_8);
+                plugin.getLogger().info("Messages de config.yml repris dans messages.yml.");
+            }
+        } catch (IOException e) {
+            plugin.getLogger().warning("Messages de config.yml non repris dans messages.yml : " + e.getMessage());
+        }
+    }
+
+    /** Remplace le texte de la clé (sur plusieurs lignes ou non) par une valeur entre guillemets, ou l'ajoute. */
+    private static void setText(List<String> lines, String key, String text) {
+        String value = key + ": \"" + text.replace("\\", "\\\\").replace("\"", "\\\"")
+            .replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t") + "\"";
+        int start = -1;
+        for (int i = 0; i < lines.size(); i++) {
+            if (lines.get(i).startsWith(key + ":")) {
+                start = i;
+                break;
+            }
+        }
+        if (start < 0) {
+            lines.add(value);
+            return;
+        }
+        int end = start + 1;
+        while (end < lines.size() && (lines.get(end).isEmpty() || Character.isWhitespace(lines.get(end).charAt(0)))) {
+            end++;
+        }
+        while (end > start + 1 && lines.get(end - 1).isBlank()) {
+            end--;
+        }
+        lines.subList(start, end).clear();
+        lines.add(start, value);
+    }
+
+    /**
+     * Relit config.yml et messages.yml. Les deux sont lus avant tout remplacement : si l'un est illisible, rien ne change.
+     *
+     * @return null si tout est rechargé, sinon {fichier, erreur}
+     */
+    public String[] reload() {
+        File configFile = new File(plugin.getDataFolder(), "config.yml");
+        migrateMessages();
+        String name = configFile.getName();
+        YamlConfiguration newMessages = new YamlConfiguration();
+        try {
+            new YamlConfiguration().load(configFile);
+            name = "messages.yml";
+            newMessages.load(messagesFile());
+        } catch (IOException | InvalidConfigurationException e) {
+            return new String[]{name, String.valueOf(e.getMessage()).replace("&", "").replaceAll("\\s+", " ").trim()};
+        }
+        plugin.reloadConfig();
+        this.config = plugin.getConfig();
+        this.messages = withDefaults(newMessages);
+        loadValues();
+        return null;
+    }
+
+    /**
+     * Message de messages.yml, préfixe ajouté, couleurs appliquées ; chaque paire de {@code values} remplace {nom} par
+     * sa valeur (après les couleurs : une valeur n'est jamais lue comme un code couleur).
+     */
+    public String get(String key, String... values) {
+        String text = prefix + translateColors(messages.getString(key, key));
+        for (int i = 0; i + 1 < values.length; i += 2) {
+            text = text.replace("{" + values[i] + "}", values[i + 1]);
+        }
+        return text;
+    }
+
+    /** Texte de messages.yml sans préfixe, couleurs appliquées. */
+    public String text(String key) {
+        return translateColors(messages.getString(key, key));
     }
 
     private void loadValues() {
@@ -131,32 +263,30 @@ public class ConfigManager {
         webhookEmbedFooter = config.getString("discord_webhook.content.embeds.0.footer.text", "SHVotePunish");
 
         // Messages
-        prefix = translateColors(config.getString("messages.prefix", "&8[&cVotePunish&8] "));
-        playerNotFound = prefix + translateColors(config.getString("messages.player_not_found"));
-        noPermission = prefix + translateColors(config.getString("messages.no_permission"));
-        cannotPunishSelf = prefix + translateColors(config.getString("messages.cannot_punish_self"));
-        playerHasBypass = prefix + translateColors(config.getString("messages.player_has_bypass"));
-        voteAlreadyInProgress = prefix + translateColors(config.getString("messages.vote_already_in_progress"));
-        voteStartConfirmation = prefix + translateColors(config.getString("messages.vote_start_confirmation"));
-        voteBroadcast = prefix + translateColors(config.getString("messages.vote_broadcast"));
-        voteSuccess = prefix + translateColors(config.getString("messages.vote_success"));
-        voteFail = prefix + translateColors(config.getString("messages.vote_fail"));
-        adminIgnoreAdd = prefix + translateColors(config.getString("messages.admin_ignore_add"));
-        adminIgnoreRemove = prefix + translateColors(config.getString("messages.admin_ignore_remove"));
-        // NOUVEAU
-        playerAlreadyPunished = prefix + translateColors(config.getString("messages.player_already_punished", "&cCe joueur a déjà été sanctionné par un vote."));
-        adminUnpunish = prefix + translateColors(config.getString("messages.admin_unpunish", "&aLe joueur {player} peut de nouveau être la cible d'un vote."));
+        prefix = translateColors(messages.getString("prefix", ""));
+        playerNotFound = prefix + translateColors(messages.getString("player_not_found"));
+        noPermission = prefix + translateColors(messages.getString("no_permission"));
+        cannotPunishSelf = prefix + translateColors(messages.getString("cannot_punish_self"));
+        playerHasBypass = prefix + translateColors(messages.getString("player_has_bypass"));
+        voteAlreadyInProgress = prefix + translateColors(messages.getString("vote_already_in_progress"));
+        voteStartConfirmation = prefix + translateColors(messages.getString("vote_start_confirmation"));
+        voteBroadcast = prefix + translateColors(messages.getString("vote_broadcast"));
+        voteSuccess = prefix + translateColors(messages.getString("vote_success"));
+        voteFail = prefix + translateColors(messages.getString("vote_fail"));
+        adminIgnoreAdd = prefix + translateColors(messages.getString("admin_ignore_add"));
+        adminIgnoreRemove = prefix + translateColors(messages.getString("admin_ignore_remove"));
+        playerAlreadyPunished = prefix + translateColors(messages.getString("player_already_punished"));
+        adminUnpunish = prefix + translateColors(messages.getString("admin_unpunish"));
         // Mode réseau (SHNetwork)
-        importSuccess = prefix + translateColors(config.getString("messages.import_success", "&7&l« &a&lSGuard &8&l» &a{imported}&7 joueurs importés dans la base du réseau (&a{present}&7 déjà présents)."));
-        importUnavailable = prefix + translateColors(config.getString("messages.import_unavailable", "&7&l« &6&lSGuard &8&l» &7L'importation ne sert qu'&6avec SHNetwork&7 : ce serveur garde les listes dans ses fichiers."));
-        importError = prefix + translateColors(config.getString("messages.import_error", "&7&l« &c&lSGuard &8&l» &7Importation &céchouée&7 : base injoignable, voir la console."));
-        unknownPlayerNetwork = prefix + translateColors(config.getString("messages.unknown_player_network", "&7&l« &c&lSGuard &8&l» &cLe joueur &e{player}&c n'a jamais été vu sur le réseau."));
-
+        importSuccess = prefix + translateColors(messages.getString("import_success"));
+        importUnavailable = prefix + translateColors(messages.getString("import_unavailable"));
+        importError = prefix + translateColors(messages.getString("import_error"));
+        unknownPlayerNetwork = prefix + translateColors(messages.getString("unknown_player_network"));
 
         // Logs
-        logVoteStart = config.getString("messages.log_vote_start");
-        logPlayerVote = config.getString("messages.log_player_vote");
-        logVoteEnd = config.getString("messages.log_vote_end");
+        logVoteStart = messages.getString("log_vote_start");
+        logPlayerVote = messages.getString("log_player_vote");
+        logVoteEnd = messages.getString("log_vote_end");
 
         // Permissions
         permUse = config.getString("permissions.use", "shvotepunish.use");

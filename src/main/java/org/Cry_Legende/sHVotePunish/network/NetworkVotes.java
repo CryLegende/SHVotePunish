@@ -11,6 +11,7 @@ import org.Cry_Legende.sHVotePunish.managers.VoteManager;
 import org.Cry_Legende.sHVotePunish.managers.VoteManager.ActiveVote;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.scheduler.BukkitTask;
@@ -459,7 +460,7 @@ public final class NetworkVotes {
     }
 
     /** Copie les listes des fichiers dans la base du réseau, sans toucher aux joueurs déjà inscrits. */
-    public void importLists(Player admin) {
+    public void importLists(CommandSender admin) {
         lists.execute(() -> {
             String message;
             boolean done = false;
@@ -479,7 +480,7 @@ public final class NetworkVotes {
             String shown = message;
             try {
                 Bukkit.getScheduler().runTask(plugin, () -> {
-                    if (admin.isOnline()) admin.sendMessage(shown);
+                    if (!(admin instanceof Player player) || player.isOnline()) admin.sendMessage(shown);
                 });
             } catch (IllegalPluginAccessException ignored) {
                 // plugin en cours d'arrêt

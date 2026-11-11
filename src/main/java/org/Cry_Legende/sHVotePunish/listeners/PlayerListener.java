@@ -26,12 +26,17 @@ public class PlayerListener implements Listener {
     // Utilise une structure de données thread-safe car l'événement de chat est asynchrone.
     // La clé est l'UUID du joueur, la valeur est une liste de ses messages récents.
     private final Map<UUID, Queue<String>> recentMessages = new ConcurrentHashMap<>();
-    private final int maxMessagesToStore;
+    private volatile int maxMessagesToStore;
 
     public PlayerListener(SHVotePunish plugin) {
         this.plugin = plugin;
         this.voteManager = plugin.getVoteManager();
         // Récupère la limite depuis la config, avec une valeur par défaut de 10.
+        this.maxMessagesToStore = plugin.getConfig().getInt("discord_webhook.last_messages_limit", 10);
+    }
+
+    /** Relit la limite de messages gardés (rechargement) ; ceux déjà gardés restent. */
+    public void refreshLimit() {
         this.maxMessagesToStore = plugin.getConfig().getInt("discord_webhook.last_messages_limit", 10);
     }
 

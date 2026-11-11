@@ -239,8 +239,7 @@ public class VoteManager {
 
     /** Texte annoncé quand la cible se déconnecte pendant le vote. */
     public String cancelledMessage(String targetName) {
-        return plugin.getConfigManager().getPrefix() +
-            "§cLe vote contre §e" + targetName + "§c a été annulé car il s'est déconnecté.";
+        return plugin.getConfigManager().get("vote_cancelled_disconnect", "player", targetName);
     }
 
     // --- Copies des votes portés par un autre serveur (mode réseau) ---

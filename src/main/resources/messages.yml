@@ -1,0 +1,83 @@
+# ----------------------------------------------------------------#
+#                    Messages de SHVotePunish                     #
+# ----------------------------------------------------------------#
+#
+# Codes couleur &. Chaque message est précédé du texte de la clé prefix (vide : les messages portent leur propre
+# préfixe). {player}, {initiator}, {target}... sont remplacés par la valeur indiquée dans le commentaire de chaque
+# message. Ce fichier est relu par /shvotepunish reload ; une clé absente reprend le texte livré avec le plugin.
+
+prefix: ""
+player_not_found: "&7&l« &c&lSGuard &8&l» &cCe joueur n'est pas en ligne."
+no_permission: "&7&l« &c&lSGuard &8&l» &7Vous n'avez pas la permission de faire cela."
+cannot_punish_self: "&7&l« &c&lSGuard &8&l» &cVous ne pouvez pas vous sanctionner vous-même."
+player_has_bypass: "&7&l« &c&lSGuard &8&l» &cVous ne pouvez pas lancer de vote contre ce joueur (immunisé)."
+vote_already_in_progress: "&7&l« &c&lSGuard &8&l» &cUn vote est déjà en cours contre ce joueur."
+vote_start_confirmation: "&7&l« &6&lSGuard &8&l» &7Vous êtes sur le point de lancer un vote contre &e{player}&7."
+vote_broadcast: |-
+  &r
+  &7&l« &c&lSGuard &8&l» 
+  &c{initiator} &fa lancé un vote pour sanctionner &4{target}&7 !
+  &7• &fTapez [/votepunish {target}]&f pour participer.
+  &7&o(( Attention, les abus seront sanctionnés ! ))
+  &r 
+vote_success: |-
+  &r
+  &7&l« &4&lSGuard &8&l»
+  &fLe vote pour sanctionner &e{player}&f est passé !
+  &fLe joueur a été sanctionné, en attendant l'intervention du staff.
+  &r
+vote_fail: "&7&l« &c&lSGuard &8&l» &fLe vote pour sanctionner &4{player}&f a échoué &7(pas assez de votes)"
+player_already_punished: "&7&l« &c&lSGuard &8&l» &fCe joueur a déjà été sanctionné par un vote."
+admin_unpunish: "&7&l« &c&lSGuard &8&l» &aLe joueur {player} peut de nouveau être la cible d'un vote."
+admin_ignore_add: "&7&l« &c&lSGuard &8&l» &7Les votes de &e{player}&7 seront désormais ignorés."
+admin_ignore_remove: "&7&l« &a&lSGuard &8&l» &7Les votes de &e{player}&7 seront de nouveau comptabilisés."
+unknown_player_network: "&7&l« &c&lSGuard &8&l» &cLe joueur &e{player}&c n'a jamais été vu sur le réseau."
+import_success: "&7&l« &a&lSGuard &8&l» &a{imported}&7 joueurs importés dans la base du réseau (&a{present}&7 déjà présents)."
+import_unavailable: "&7&l« &6&lSGuard &8&l» &7L'importation ne sert qu'&6avec SHNetwork&7 : ce serveur garde les listes dans ses fichiers."
+import_error: "&7&l« &c&lSGuard &8&l» &7Importation &céchouée&7 : base injoignable, voir la console."
+log_vote_start: "[VOTE START] Initiator: {initiator}, Target: {target}"
+log_player_vote: "[PLAYER VOTE] Voter: {voter}, Target: {target}"
+log_vote_end: "[VOTE END] Target: {target}, Outcome: {outcome}, Votes: {current}/{required}"
+
+
+# --- /votepunish et /shvotepunish ---
+
+# /votepunish tapée dans la console
+player_only: "&7&l« &c&lSGuard &8&l» &cCette commande doit être exécutée par un joueur."
+usage_player: "&7&l« &c&lSGuard &8&l» &cUtilisation : /votepunish <joueur>"
+not_allowed_to_vote: "&7&l« &c&lSGuard &8&l» &cVous n'êtes pas autorisé à participer aux votes."
+vote_not_found: "&7&l« &c&lSGuard &8&l» &cErreur: Le vote en cours n'a pas pu être trouvé. Il a peut-être expiré."
+vote_ended: "&7&l« &c&lSGuard &8&l» &cCe vote est terminé."
+vote_registered: "&7&l« &a&lSGuard &8&l» &aVotre vote a été enregistré !"
+# {player} : joueur visé, parti pendant le vote
+vote_cancelled_disconnect: "&7&l« &c&lSGuard &8&l» &cLe vote contre &e{player}&c a été annulé car il s'est déconnecté."
+
+# /shvotepunish sans argument ou avec une sous-commande inconnue. {subcommands} : celles que l'expéditeur peut utiliser
+admin_usage: "&7&l« &c&lSGuard &8&l» &cUtilisation : /shvotepunish <{subcommands}>"
+# /shvotepunish ignore|unignore|unpunish|info sans joueur. {subcommand}
+admin_usage_target: "&7&l« &c&lSGuard &8&l» &cUtilisation : /shvotepunish {subcommand} <joueur>"
+# {player} : pseudo tapé
+player_never_seen: "&7&l« &c&lSGuard &8&l» &cLe joueur '{player}' n'a jamais été vu sur ce serveur."
+
+# /shvotepunish reload. {file} : fichier illisible, {error} : cause (l'ancienne configuration reste en place)
+reload_done: "&7&l« &a&lSGuard &8&l» &7Configuration et messages rechargés."
+reload_error: "&7&l« &c&lSGuard &8&l» &cRechargement annulé, {file} est illisible : &7{error}"
+reload_restart: "&7&l« &6&lSGuard &8&l» &7La section &6reseau &7ne se lit qu'au démarrage : &6redémarrage nécessaire &7pour la changer."
+
+# /shvotepunish list <ignored|punished>. {list} : nom de la liste, {count}, {page}, {pages}, {name}, {uuid}
+list_usage: "&7&l« &c&lSGuard &8&l» &cUtilisation : /shvotepunish list <ignored|punished> [page]"
+list_header: "&7&l« &e&lSGuard &8&l» &7Liste &e{list} &8({count} joueur(s), page {page}/{pages})"
+list_entry: "&8 • &f{name} &8{uuid}"
+list_empty: "&7&l« &e&lSGuard &8&l» &7La liste &e{list} &7est vide."
+
+# /shvotepunish info <joueur>. {player}, {value} (oui ou non), {votes}, {required}, {node}
+info_header: "&7&l« &e&lSGuard &8&l» &7Votes et &e{player}"
+info_ignored: "&8 • &7Interdit de vote (ignoré) : {value}"
+info_punished: "&8 • &7Déjà sanctionné par un vote : {value}"
+info_blacklisted: "&8 • &7Jamais visé (blacklisted_players) : {value}"
+info_vote: "&8 • &7Vote en cours contre lui : &e{votes}&8/&6{required}"
+info_no_vote: "&8 • &7Vote en cours contre lui : &7aucun"
+info_permission: "&8 • &7Permission &f{node} &7: {value}"
+info_offline: "&8 • &7Permissions : &7visibles seulement pour un joueur en ligne"
+info_yes: "&aoui"
+info_no: "&cnon"

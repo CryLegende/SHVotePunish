@@ -169,6 +169,16 @@ public class Storage {
         return ignoredPlayers.contains(uuid);
     }
 
+    /** Copie de la liste des joueurs ignorés. */
+    public Set<UUID> getIgnoredPlayers() {
+        return Set.copyOf(ignoredPlayers);
+    }
+
+    /** Copie de la liste des joueurs déjà sanctionnés. */
+    public Set<UUID> getPunishedPlayers() {
+        return Set.copyOf(punishedPlayers);
+    }
+
 
     // --- NOUVEAU: Gestion des joueurs sanctionnés ---
 

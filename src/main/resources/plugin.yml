@@ -19,12 +19,52 @@ libraries:
 
 commands:
   votepunish:
-    description: Lance un vote pour sanctionner un joueur ou gère le plugin.
-    usage: |
-      /<command> <joueur>
-      /<command> ignore <joueur>
-      /<command> unignore <joueur>
-      /<command> unpunish <joueur>
-      /<command> import
+    description: Lance un vote pour sanctionner un joueur.
+    usage: /<command> <joueur>
     aliases:
       - punish
+  shvotepunish:
+    description: Administration de SHVotePunish.
+    usage: /<command> <ignore|unignore|unpunish|import|reload|list|info>
+
+# Les permissions sont vérifiées avec Vault ; les noms de use, bypass, admin et eligibility_bypass se règlent dans la
+# section permissions du config.yml (valeurs par défaut ci-dessous).
+permissions:
+  shvotepunish.use:
+    description: Lancer un vote contre un joueur et voter (permissions.use du config.yml).
+    default: op
+  shvotepunish.bypass:
+    description: Ne peut pas être la cible d'un vote (permissions.bypass du config.yml).
+    default: op
+  shvotepunish.admin:
+    description: Toutes les sous-commandes de /shvotepunish.
+    default: op
+    children:
+      shvotepunish.admin.ignore: true
+      shvotepunish.admin.unignore: true
+      shvotepunish.admin.unpunish: true
+      shvotepunish.admin.import: true
+      shvotepunish.admin.reload: true
+      shvotepunish.admin.list: true
+      shvotepunish.admin.info: true
+  shvotepunish.admin.ignore:
+    description: Interdire à un joueur de participer aux votes (/shvotepunish ignore).
+    default: op
+  shvotepunish.admin.unignore:
+    description: Autoriser de nouveau un joueur à participer aux votes (/shvotepunish unignore).
+    default: op
+  shvotepunish.admin.unpunish:
+    description: Permettre de nouveau un vote contre un joueur déjà sanctionné (/shvotepunish unpunish).
+    default: op
+  shvotepunish.admin.import:
+    description: Mode réseau, copier les listes des fichiers dans la base (/shvotepunish import).
+    default: op
+  shvotepunish.admin.reload:
+    description: Recharger config.yml et messages.yml (/shvotepunish reload).
+    default: op
+  shvotepunish.admin.list:
+    description: Lister les joueurs ignorés ou sanctionnés (/shvotepunish list).
+    default: op
+  shvotepunish.admin.info:
+    description: Voir pourquoi un joueur ne peut pas lancer, voter ou être visé (/shvotepunish info).
+    default: op

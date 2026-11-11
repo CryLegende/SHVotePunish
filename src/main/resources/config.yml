@@ -8,21 +8,29 @@
 # Avec SHNetwork, les votes, les menus et les listes valent pour tous les serveurs Opale (voir la section
 # 'reseau' en bas du fichier).
 #
-# Commandes (alias /punish) :
-#   /votepunish <joueur>             Lance un vote contre le joueur, ou ouvre le menu du vote en cours.
-#   /votepunish ignore <joueur>      Interdit au joueur de participer aux votes.
-#   /votepunish unignore <joueur>    Autorise de nouveau le joueur à participer aux votes.
-#   /votepunish unpunish <joueur>    Permet de nouveau un vote contre un joueur déjà sanctionné.
-#   /votepunish import               Avec SHNetwork : copie ignored_players.yml et punished_players.yml dans la base
+# Commandes :
+#   /votepunish <joueur>             (alias /punish) Lance un vote contre le joueur, ou ouvre le menu du vote en cours.
+#   /shvotepunish ignore <joueur>    Interdit au joueur de participer aux votes.
+#   /shvotepunish unignore <joueur>  Autorise de nouveau le joueur à participer aux votes.
+#   /shvotepunish unpunish <joueur>  Permet de nouveau un vote contre un joueur déjà sanctionné.
+#   /shvotepunish import             Avec SHNetwork : copie ignored_players.yml et punished_players.yml dans la base
 #                                    du réseau, sans toucher aux joueurs déjà inscrits.
+#   /shvotepunish list <ignored|punished>   Liste les joueurs interdits de vote, ou déjà sanctionnés par un vote.
+#   /shvotepunish info <joueur>      Dit pourquoi un joueur ne peut pas lancer, voter ou être visé.
+#   /shvotepunish reload             Relit config.yml et messages.yml (un fichier illisible ne change rien ; un vote en
+#                                    cours garde ses réglages ; la section reseau demande un redémarrage ; les listes ne
+#                                    sont jamais touchées).
+#   Les anciennes formes /votepunish ignore|unignore|unpunish|import <joueur> marchent toujours, avec les mêmes droits.
 #
 # Permissions (noms réglables dans la section permissions, vérifiées avec Vault) :
-#   use                  Lancer un vote et voter.
-#   admin                Utiliser ignore, unignore, unpunish et import.
-#   bypass               Ne peut pas être la cible d'un vote.
+#   use                  Lancer un vote et voter (sans cette clé : shvotepunish.use).
+#   bypass               Ne peut pas être la cible d'un vote (sans cette clé : shvotepunish.bypass).
 #   eligibility_bypass   Ne peut pas être la cible d'un vote.
+#   admin                Toutes les sous-commandes de /shvotepunish (shvotepunish.admin par défaut). Chaque
+#                        sous-commande a aussi son nœud <admin>.<sous-commande> : shvotepunish.admin.ignore,
+#                        .unignore, .unpunish, .import, .reload, .list, .info.
 #
-# Les textes sont dans la section messages et dans les sections de menus.
+# Les messages sont dans messages.yml ; les textes des menus dans les sections confirmation_menu et vote_menu.
 
 # Paramètres généraux du vote
 vote:
@@ -115,41 +123,6 @@ discord_webhook:
         # Pied de page de l'embed. {current_time} sera remplacé par l'heure de la sanction.
         footer:
           text: "SHVotePunish • {current_time}"
-
-# Messages du plugin (supporte les codes couleurs &)
-messages:
-  prefix: ""
-  player_not_found: "&7&l« &c&lSGuard &8&l» &cCe joueur n'est pas en ligne."
-  no_permission: "&7&l« &c&lSGuard &8&l» &7Vous n'avez pas la permission de faire cela."
-  cannot_punish_self: "&7&l« &c&lSGuard &8&l» &cVous ne pouvez pas vous sanctionner vous-même."
-  player_has_bypass: "&7&l« &c&lSGuard &8&l» &cVous ne pouvez pas lancer de vote contre ce joueur (immunisé)."
-  vote_already_in_progress: "&7&l« &c&lSGuard &8&l» &cUn vote est déjà en cours contre ce joueur."
-  vote_start_confirmation: "&7&l« &6&lSGuard &8&l» &7Vous êtes sur le point de lancer un vote contre &e{player}&7."
-  vote_broadcast: |-
-    &r
-    &7&l« &c&lSGuard &8&l» 
-    &c{initiator} &fa lancé un vote pour sanctionner &4{target}&7 !
-    &7• &fTapez [/votepunish {target}]&f pour participer.
-    &7&o(( Attention, les abus seront sanctionnés ! ))
-    &r 
-  vote_success: |-
-    &r
-    &7&l« &4&lSGuard &8&l»
-    &fLe vote pour sanctionner &e{player}&f est passé !
-    &fLe joueur a été sanctionné, en attendant l'intervention du staff.
-    &r
-  vote_fail: "&7&l« &c&lSGuard &8&l» &fLe vote pour sanctionner &4{player}&f a échoué &7(pas assez de votes)"
-  player_already_punished: "&7&l« &c&lSGuard &8&l» &fCe joueur a déjà été sanctionné par un vote."
-  admin_unpunish: "&7&l« &c&lSGuard &8&l» &aLe joueur {player} peut de nouveau être la cible d'un vote."
-  admin_ignore_add: "&7&l« &c&lSGuard &8&l» &7Les votes de &e{player}&7 seront désormais ignorés."
-  admin_ignore_remove: "&7&l« &a&lSGuard &8&l» &7Les votes de &e{player}&7 seront de nouveau comptabilisés."
-  unknown_player_network: "&7&l« &c&lSGuard &8&l» &cLe joueur &e{player}&c n'a jamais été vu sur le réseau."
-  import_success: "&7&l« &a&lSGuard &8&l» &a{imported}&7 joueurs importés dans la base du réseau (&a{present}&7 déjà présents)."
-  import_unavailable: "&7&l« &6&lSGuard &8&l» &7L'importation ne sert qu'&6avec SHNetwork&7 : ce serveur garde les listes dans ses fichiers."
-  import_error: "&7&l« &c&lSGuard &8&l» &7Importation &céchouée&7 : base injoignable, voir la console."
-  log_vote_start: "[VOTE START] Initiator: {initiator}, Target: {target}"
-  log_player_vote: "[PLAYER VOTE] Voter: {voter}, Target: {target}"
-  log_vote_end: "[VOTE END] Target: {target}, Outcome: {outcome}, Votes: {current}/{required}"
 
 # Permissions vérifiées par le plugin.
 permissions:

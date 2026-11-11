@@ -7,16 +7,16 @@ import org.Cry_Legende.sHVotePunish.managers.GUIManager;
 import org.Cry_Legende.sHVotePunish.managers.VoteManager;
 import org.Cry_Legende.sHVotePunish.network.NetworkVotes;
 import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.UUID;
+import java.util.Locale;
 
 /**
- * Gère la commande /votepunish, ses alias et ses sous-commandes d'administration.
+ * Gère la commande /votepunish et son alias : lancer un vote contre un joueur, ou voter. L'administration est dans
+ * /shvotepunish ; les anciennes formes /votepunish ignore|unignore|unpunish|import y mènent toujours.
  * Utilise la méthode centralisée hasPermission() du plugin pour toutes les vérifications.
  */
 public class VotePunishCommand implements CommandExecutor {
@@ -26,48 +26,45 @@ public class VotePunishCommand implements CommandExecutor {
     private final VoteManager voteManager;
     private final GUIManager guiManager;
     private final Storage storage;
+    private final AdminCommand admin;
 
-    public VotePunishCommand(SHVotePunish plugin) {
+    public VotePunishCommand(SHVotePunish plugin, AdminCommand admin) {
         this.plugin = plugin;
         this.configManager = plugin.getConfigManager();
         this.voteManager = plugin.getVoteManager();
         this.storage = plugin.getStorage();
         this.guiManager = new GUIManager(plugin);
+        this.admin = admin;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage("Cette commande doit être exécutée par un joueur.");
+            sender.sendMessage(configManager.get("player_only"));
             return true;
         }
 
         Player player = (Player) sender;
 
         if (args.length == 0) {
-            player.sendMessage(configManager.getPrefix() + "§cUtilisation : /" + label + " <joueur>");
+            player.sendMessage(configManager.get("usage_player"));
             return true;
         }
 
-        // --- Gestion des sous-commandes d'administration ---
-        // MODIFIÉ: Ajout de "unpunish"
-        if (args[0].equalsIgnoreCase("ignore") || args[0].equalsIgnoreCase("unignore") || args[0].equalsIgnoreCase("unpunish")) {
-            if (!plugin.hasPermission(player, configManager.getAdminPermission())) {
+        // --- Anciennes formes d'administration : /votepunish ignore|unignore|unpunish <joueur> ---
+        String first = args[0].toLowerCase(Locale.ROOT);
+        if (first.equals("ignore") || first.equals("unignore") || first.equals("unpunish")) {
+            if (!admin.can(player, first)) {
                 player.sendMessage(configManager.getNoPermissionMessage());
                 return true;
             }
-            handleAdminCommands(player, args, label);
+            admin.run(player, first, args);
             return true;
         }
 
         // "import" est réservé à l'administration ; pour les autres joueurs c'est un pseudo comme un autre
-        if (args[0].equalsIgnoreCase("import") && plugin.hasPermission(player, configManager.getAdminPermission())) {
-            NetworkVotes network = plugin.getNetworkVotes();
-            if (network == null) {
-                player.sendMessage(configManager.getImportUnavailableMessage());
-            } else {
-                network.importLists(player);
-            }
+        if (first.equals("import") && admin.can(player, "import")) {
+            admin.run(player, "import", args);
             return true;
         }
 
@@ -78,7 +75,7 @@ public class VotePunishCommand implements CommandExecutor {
         }
 
         if (storage.isPlayerIgnored(player.getUniqueId())) {
-            player.sendMessage(configManager.getPrefix() + "§cVous n'êtes pas autorisé à participer aux votes.");
+            player.sendMessage(configManager.get("not_allowed_to_vote"));
             return true;
         }
 
@@ -100,7 +97,7 @@ public class VotePunishCommand implements CommandExecutor {
             VoteManager.ActiveVote existingVote = voteManager.getActiveVote(target.getUniqueId());
 
             if (existingVote == null) {
-                player.sendMessage(configManager.getPrefix() + "§cErreur: Le vote en cours n'a pas pu être trouvé. Il a peut-être expiré.");
+                player.sendMessage(configManager.get("vote_not_found"));
                 return true;
             }
 
@@ -126,7 +123,7 @@ public class VotePunishCommand implements CommandExecutor {
             return true;
         }
 
-        // NOUVEAU: Vérifier si le joueur a déjà été sanctionné par un vote
+        // Vérifier si le joueur a déjà été sanctionné par un vote
         if (storage.isPlayerPunished(target.getUniqueId())) {
             player.sendMessage(configManager.getPlayerAlreadyPunishedMessage());
             return true;
@@ -137,54 +134,5 @@ public class VotePunishCommand implements CommandExecutor {
         guiManager.openConfirmationMenu(player, target);
 
         return true;
-    }
-
-    // MODIFIÉ: Renommée et étendue pour gérer toutes les commandes admin
-    private void handleAdminCommands(Player player, String[] args, String label) {
-        if (args.length < 2) {
-            player.sendMessage(configManager.getPrefix() + "§cUtilisation : /" + label + " " + args[0] + " <joueur>");
-            return;
-        }
-
-        String subCommand = args[0].toLowerCase();
-
-        NetworkVotes network = plugin.getNetworkVotes();
-        if (network != null) {
-            // Avec SHNetwork, le joueur est cherché sur tout le réseau, sans interroger Mojang ni les fichiers de ce serveur
-            network.resolvePlayer(args[1], (uuid, name) -> {
-                if (!player.isOnline()) return;
-                if (uuid == null) {
-                    player.sendMessage(configManager.getUnknownPlayerNetworkMessage().replace("{player}", args[1]));
-                    return;
-                }
-                applyAdminCommand(player, subCommand, uuid, name);
-            });
-            return;
-        }
-
-        OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
-        if (!target.hasPlayedBefore() && !target.isOnline()) {
-            player.sendMessage(configManager.getPrefix() + "§cLe joueur '" + args[1] + "' n'a jamais été vu sur ce serveur.");
-            return;
-        }
-
-        applyAdminCommand(player, subCommand, target.getUniqueId(), target.getName());
-    }
-
-    private void applyAdminCommand(Player player, String subCommand, UUID targetUUID, String targetName) {
-        switch (subCommand) {
-            case "ignore":
-                storage.addIgnoredPlayer(targetUUID, targetName);
-                player.sendMessage(configManager.getAdminIgnoreAddMessage().replace("{player}", targetName));
-                break;
-            case "unignore":
-                storage.removeIgnoredPlayer(targetUUID);
-                player.sendMessage(configManager.getAdminIgnoreRemoveMessage().replace("{player}", targetName));
-                break;
-            case "unpunish": // NOUVEAU
-                storage.removePunishedPlayer(targetUUID);
-                player.sendMessage(configManager.getAdminUnpunishMessage().replace("{player}", targetName));
-                break;
-        }
     }
 }
