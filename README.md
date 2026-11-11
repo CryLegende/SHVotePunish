@@ -21,7 +21,7 @@ Utilisé sur : **Opale**. Avec `SHNetwork`, un seul vote par joueur visé vaut p
 ## Dépendances
 
 - Obligatoires : `Vault`
-- Optionnelles : `SHLogs`, `SHNetwork`
+- Optionnelles : `SHLogs`, `SHNetwork`, `SHSkins` (têtes des joueurs dans les menus avec leur skin, sinon têtes sans texture : Steve ou Alex)
 
 ## Commandes
 
@@ -98,6 +98,8 @@ mvn clean package
 ```
 
 Le jar est généré dans `target/`.
+
+SHSkins doit être installé dans le dépôt Maven local (`mvn install` dans `SHSkins-Velocity`).
 
 ---
 

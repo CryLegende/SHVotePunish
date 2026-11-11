@@ -1,6 +1,7 @@
 package org.Cry_Legende.sHVotePunish.managers;
 
 import org.Cry_Legende.sHVotePunish.SHVotePunish;
+import org.Cry_Legende.sHVotePunish.utils.PlayerHeads;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -142,17 +143,12 @@ public class GUIManager {
         return item;
     }
 
-    /** Tête du joueur : celle de sa peau s'il est sur ce serveur, sinon une tête à son nom (cible d'un autre serveur). */
+    /** Tête du joueur avec son skin, qu'il soit sur ce serveur ou sur un autre (cible d'un vote réseau). */
     private ItemStack createPlayerHead(UUID id, String name, String title, List<String> lore) {
-        Player player = Bukkit.getPlayer(id);
         ItemStack item = new ItemStack(Material.PLAYER_HEAD, 1);
         SkullMeta meta = (SkullMeta) item.getItemMeta();
         if (meta != null) {
-            if (player != null) {
-                meta.setOwningPlayer(player);
-            } else {
-                meta.setPlayerProfile(Bukkit.createProfile(id, name));
-            }
+            PlayerHeads.apply(meta, id, name);
             meta.setDisplayName(title);
             meta.setLore(lore);
             item.setItemMeta(meta);

@@ -11,6 +11,7 @@ depend:
 softdepend:
   - SHLogs
   - SHNetwork
+  - SHSkins
 # Chargées par Paper dans le classloader du plugin : le serveur n'embarque que les pilotes MySQL et SQLite.
 # Seul le mode réseau (listes en MariaDB) s'en sert.
 libraries:
