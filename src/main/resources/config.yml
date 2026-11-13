@@ -35,7 +35,7 @@
 # Paramètres généraux du vote
 vote:
   # Commande à exécuter quand un vote réussit. Placeholders: {player}, {uuid}
-  command_on_success: "tempipmute {player} 1h -s [VoteMute] Comportement inapproprié"
+  command_on_success: "mute {player} 1h Comportement inapproprié"
 
   # Durée en secondes avant qu'un vote n'expire s'il n'atteint pas le nombre requis.
   duration: 120
@@ -99,7 +99,7 @@ discord_webhook:
   # --- Contenu du Message ---
   content:
     # Nom du bot qui envoie le message.
-    username: "SkyGuard • VoteMute"
+    username: "VoteMute"
 
     # URL de l'avatar du bot. {player} sera remplacé par le pseudo du joueur sanctionné.
     avatar_url: "https://cravatar.eu/helmavatar/{player}/64.png"
@@ -127,19 +127,18 @@ discord_webhook:
 # Permissions vérifiées par le plugin.
 permissions:
   # Lancer un vote et voter.
-  use: "thesearch.search.*"
+  use: "shvotepunish.use"
   # Ne peut pas être la cible d'un vote.
   bypass: "shvotepunish.bypass"
   # Utiliser /votepunish ignore, unignore et unpunish.
   admin: "shvotepunish.admin"
   # Ne peut pas être la cible d'un vote.
-  eligibility_bypass: "thesearch.search.*"
+  eligibility_bypass: "shvotepunish.bypass"
 
 # Joueurs qui ne peuvent jamais être la cible d'un vote, même sans permission de bypass.
 blacklisted_players:
-  - "Cry_Legende"
-  - "Enzias"
-  - "Topicfly"
+  - "Steve"
+  - "Alex"
 
 # Mode réseau, avec SHNetwork (sans lui, chaque serveur garde ses votes et ses fichiers comme avant).
 # Le vote contre un joueur est porté par le serveur où il se trouve au lancement : il compte les votes des joueurs de
@@ -165,10 +164,10 @@ reseau:
   # sert à reconnaître un joueur pour ignore, unignore et unpunish, et à la date du webhook
   joueurs-connus:
     # Table du registre, préfixée par sa base
-    table: "Global.sh_track_firstseen"
+    table: "minecraft.sh_track_firstseen"
   # Base partagée par tous les serveurs : listes dans la table votepunish_players (list, uuid, name, since)
   base-de-donnees:
-    url: "jdbc:mariadb://127.0.0.1:3306/bo_net"
+    url: "jdbc:mariadb://127.0.0.1:3306/minecraft"
     utilisateur: shvotepunish
     mot-de-passe: CHANGE_ME
     # Délai maximal de connexion et de réponse de la base, en millisecondes. Une base qui ne répond pas ne bloque
