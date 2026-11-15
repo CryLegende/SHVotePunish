@@ -129,6 +129,13 @@ public class VotePunishCommand implements CommandExecutor {
             return true;
         }
 
+        // Garde-fous : staff connecté, temps de jeu, délais et plafond de l'initiateur
+        String refus = plugin.getProtections().refusLancement(player);
+        if (refus != null) {
+            player.sendMessage(configManager.get(refus));
+            return true;
+        }
+
         // Ouvre le menu de CONFIRMATION pour lancer un NOUVEAU vote.
         player.sendMessage(configManager.getVoteStartConfirmationMessage().replace("{player}", target.getName()));
         guiManager.openConfirmationMenu(player, target);

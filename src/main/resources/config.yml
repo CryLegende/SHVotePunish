@@ -28,7 +28,11 @@
 #   eligibility_bypass   Ne peut pas être la cible d'un vote.
 #   admin                Toutes les sous-commandes de /shvotepunish (shvotepunish.admin par défaut). Chaque
 #                        sous-commande a aussi son nœud <admin>.<sous-commande> : shvotepunish.admin.ignore,
-#                        .unignore, .unpunish, .import, .reload, .list, .info.
+#                        .unignore, .unpunish, .import, .reload, .list, .info. Échappe aussi aux garde-fous.
+#   shvotepunish.staff   Compte comme staff connecté (protections.permission-staff) : les votes sont refusés.
+#
+# Garde-fous (section protections) : pas de vote quand un staff est connecté, temps de jeu minimum pour lancer et
+# pour voter, délais et plafond de lancements par joueur, un vote par adresse IP.
 #
 # Les messages sont dans messages.yml ; les textes des menus dans les sections confirmation_menu et vote_menu.
 
@@ -84,6 +88,11 @@ vote_menu:
     - ""
     - "&fVotes obtenus : &e{current_votes}&8/&6{required_votes}"
     - ""
+    - "&7Derniers messages :"
+    - "{derniers_messages}"
+  # Nombre de messages de la cible montrés à la place de {derniers_messages} (les messages bloqués par le
+  # filtre du chat ne sont jamais recopiés).
+  derniers_messages: 5
 
 # Intégration Discord
 discord_webhook:
@@ -95,6 +104,9 @@ discord_webhook:
 
   # Le nombre maximum de messages récents du joueur à stocker et à afficher.
   last_messages_limit: 10
+
+  # Prévenir aussi dès le lancement d'un vote (texte webhook_lancement de messages.yml).
+  au_lancement: true
 
   # --- Contenu du Message ---
   content:
@@ -134,6 +146,25 @@ permissions:
   admin: "shvotepunish.admin"
   # Ne peut pas être la cible d'un vote.
   eligibility_bypass: "shvotepunish.bypass"
+
+# Garde-fous des votes.
+protections:
+  # Votes refusés quand un membre du staff (permission-staff) est connecté sur le serveur, vanish compris :
+  # /votepunish renvoie alors vers /report.
+  bloquer-si-staff-connecte: true
+  permission-staff: "shvotepunish.staff"
+  # Un membre du staff inactif depuis ce nombre de minutes ne compte pas (0 : il compte toujours).
+  staff-actif-minutes: 10
+  # Temps de jeu minimum, en minutes, pour lancer un vote et pour voter.
+  temps-de-jeu-lancer-minutes: 120
+  temps-de-jeu-voter-minutes: 60
+  # Délai entre deux votes lancés par un même joueur, et après un vote qu'il a lancé et qui a échoué (minutes).
+  delai-entre-lancements-minutes: 10
+  delai-apres-echec-minutes: 30
+  # Votes lancés au plus par un même joueur sur 24 heures (0 pour aucune limite).
+  lancements-par-jour: 3
+  # Un seul vote par adresse IP dans un même vote (les doubles comptes ne votent pas deux fois).
+  un-vote-par-ip: true
 
 # Joueurs qui ne peuvent jamais être la cible d'un vote, même sans permission de bypass.
 blacklisted_players:

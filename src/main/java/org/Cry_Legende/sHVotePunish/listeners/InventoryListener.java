@@ -57,10 +57,18 @@ public class InventoryListener implements Listener {
 
                     UUID targetId = UUID.fromString(targetUUIDString);
                     Player target = Bukkit.getPlayer(targetId);
+                    // Le menu a pu rester ouvert : les garde-fous sont revus au clic
+                    String refusLancement = plugin.getProtections().refusLancement(player);
+                    if (refusLancement != null) {
+                        player.sendMessage(plugin.getConfigManager().get(refusLancement));
+                        player.closeInventory();
+                        return;
+                    }
                     if (target == null) {
                         // Avec SHNetwork, la cible peut être sur un autre serveur : le vote est demandé au serveur qui la porte
                         NetworkVotes network = plugin.getNetworkVotes();
                         if (network != null && network.startRemote(player, targetId)) {
+                            plugin.getProtections().noterLancement(player.getUniqueId());
                             player.closeInventory();
                             return;
                         }
@@ -69,7 +77,10 @@ public class InventoryListener implements Listener {
                         return;
                     }
                     player.closeInventory();
-                    voteManager.startVote(player, target);
+                    if (voteManager.startVote(player.getUniqueId(), player.getName(), target)) {
+                        plugin.getProtections().noterLancement(player.getUniqueId());
+                        plugin.getProtections().noterIpInitiateur(player, voteManager.getActiveVote(targetId));
+                    }
                 }
             }
             // Gestion du clic dans le menu de vote
@@ -83,6 +94,14 @@ public class InventoryListener implements Listener {
                     // Sans réseau, une cible absente a mis fin au vote ; avec SHNetwork elle peut être sur un autre serveur
                     if ((target == null && !voteManager.isNetworkVote(targetId)) || !voteManager.isVoteInProgress(targetId)) {
                         player.sendMessage(plugin.getConfigManager().get("vote_ended"));
+                        player.closeInventory();
+                        return;
+                    }
+                    VoteManager.ActiveVote enCours = voteManager.getActiveVote(targetId);
+                    String refusVote = enCours == null || enCours.hasVoted(player.getUniqueId())
+                        ? null : plugin.getProtections().refusVote(player, enCours);
+                    if (refusVote != null) {
+                        player.sendMessage(plugin.getConfigManager().get(refusVote));
                         player.closeInventory();
                         return;
                     }

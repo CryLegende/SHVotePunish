@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -215,7 +216,7 @@ public class ConfigManager {
      * sa valeur (après les couleurs : une valeur n'est jamais lue comme un code couleur).
      */
     public String get(String key, String... values) {
-        String text = prefix + translateColors(messages.getString(key, key));
+        String text = prefix + translateColors(Objects.requireNonNullElse(messages.getString(key), key));
         for (int i = 0; i + 1 < values.length; i += 2) {
             text = text.replace("{" + values[i] + "}", values[i + 1]);
         }
@@ -224,7 +225,7 @@ public class ConfigManager {
 
     /** Texte de messages.yml sans préfixe, couleurs appliquées. */
     public String text(String key) {
-        return translateColors(messages.getString(key, key));
+        return translateColors(Objects.requireNonNullElse(messages.getString(key), key));
     }
 
     private void loadValues() {

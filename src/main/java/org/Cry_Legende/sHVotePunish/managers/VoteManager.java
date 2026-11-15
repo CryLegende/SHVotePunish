@@ -62,6 +62,7 @@ public class VoteManager {
         if (net != null) vote.setOwner(net.serverName());
 
         announceStart(initiatorName, target.getName());
+        webhookLancement(initiatorName, target.getName());
 
         String logMessage = plugin.getConfigManager().getLogVoteStart()
             .replace("{initiator}", initiatorName)
@@ -174,6 +175,7 @@ public class VoteManager {
             }
         } else {
             announceEnd(outcome, vote.getTargetName());
+            if (outcome == Outcome.FAIL && !vote.isMirror()) plugin.getProtections().noterEchec(vote.getInitiatorUUID());
             if (net != null) net.publishEnd(vote, outcome == Outcome.LEFT ? "left" : "fail");
         }
 
@@ -214,6 +216,28 @@ public class VoteManager {
                 plugin.getLogger().log(Level.SEVERE, "Une erreur critique est survenue lors de la préparation du webhook Discord. La sanction a quand même été appliquée.", e);
             }
         }
+    }
+
+    /** Prévient le staff dès le lancement (discord_webhook.au_lancement), avec les derniers messages de la cible. */
+    private void webhookLancement(String initiatorName, String targetName) {
+        ConfigManager cfg = plugin.getConfigManager();
+        if (!cfg.isWebhookEnabled() || !plugin.getConfig().getBoolean("discord_webhook.au_lancement", true)) return;
+        String url = cfg.getWebhookUrl();
+        if (url == null || url.isEmpty() || url.contains("CHANGE_ME")) return;
+        String contenu = cfg.text("webhook_lancement").replace("{initiator}", initiatorName).replace("{target}", targetName);
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                DiscordWebhook webhook = new DiscordWebhook(url);
+                webhook.setContent(new JSONObject()
+                    .put("username", cfg.getWebhookUsername())
+                    .put("content", org.bukkit.ChatColor.stripColor(contenu))
+                    .put("allowed_mentions", new JSONObject().put("parse", new JSONArray()))
+                    .toString());
+                webhook.execute();
+            } catch (Exception e) {
+                plugin.getLogger().warning("Webhook du lancement de vote non envoyé : " + e.getMessage());
+            }
+        });
     }
 
     // --- Annonces (communes au serveur qui porte le vote et aux copies des autres serveurs) ---
@@ -387,6 +411,7 @@ public class VoteManager {
         private final Set<UUID> voters = new HashSet<>();
         private final Map<UUID, String> voterNames = new HashMap<>();
         private final Set<UUID> viewers = new HashSet<>();
+        private final Set<String> ips = java.util.concurrent.ConcurrentHashMap.newKeySet();
         private BukkitTask expirationTask;
 
         // Mode réseau : serveur qui porte le vote (null sur un serveur seul), copie d'un vote porté ailleurs, fin prévue
@@ -420,6 +445,11 @@ public class VoteManager {
         public String nameOf(UUID voterUUID) {
             String name = voterNames.get(voterUUID);
             return name != null ? name : Bukkit.getOfflinePlayer(voterUUID).getName();
+        }
+
+        /** Note l'adresse IP d'un votant ; faux si elle a déjà voté dans ce vote (double compte). */
+        public boolean ajouterIp(String ip) {
+            return ips.add(ip);
         }
 
         public boolean hasVoted(UUID voterUUID) {

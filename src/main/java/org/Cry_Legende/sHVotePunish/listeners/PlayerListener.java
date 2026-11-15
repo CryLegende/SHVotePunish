@@ -1,37 +1,46 @@
 package org.Cry_Legende.sHVotePunish.listeners;
 
+import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.Cry_Legende.sHVotePunish.SHVotePunish;
 import org.Cry_Legende.sHVotePunish.managers.VoteManager;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
- * Gère les événements liés aux joueurs, comme le chat et la déconnexion.
+ * Garde les derniers messages de chaque joueur (pour le webhook et le menu de vote) et annule le vote d'une cible qui
+ * se déconnecte. Les messages refusés par le filtre du chat sont gardés aussi, marqués comme bloqués.
  */
 public class PlayerListener implements Listener {
+
+    /** Message de chat gardé. */
+    private record Message(String texte, boolean bloque) {
+    }
+
+    private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
 
     private final SHVotePunish plugin;
     private final VoteManager voteManager;
 
-    // Utilise une structure de données thread-safe car l'événement de chat est asynchrone.
-    // La clé est l'UUID du joueur, la valeur est une liste de ses messages récents.
-    private final Map<UUID, Queue<String>> recentMessages = new ConcurrentHashMap<>();
+    // Le chat arrive hors du fil principal : file concurrente par joueur
+    private final Map<UUID, Deque<Message>> recentMessages = new ConcurrentHashMap<>();
     private volatile int maxMessagesToStore;
 
     public PlayerListener(SHVotePunish plugin) {
         this.plugin = plugin;
         this.voteManager = plugin.getVoteManager();
-        // Récupère la limite depuis la config, avec une valeur par défaut de 10.
         this.maxMessagesToStore = plugin.getConfig().getInt("discord_webhook.last_messages_limit", 10);
     }
 
@@ -40,35 +49,15 @@ public class PlayerListener implements Listener {
         this.maxMessagesToStore = plugin.getConfig().getInt("discord_webhook.last_messages_limit", 10);
     }
 
-    /**
-     * Capture les messages des joueurs pour les stocker.
-     * La priorité est MONITEUR pour s'assurer qu'on lit le message final,
-     * après que d'autres plugins aient pu le modifier ou l'annuler.
-     */
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onPlayerChat(AsyncPlayerChatEvent event) {
-        if (maxMessagesToStore <= 0) return; // Ne fait rien si la fonctionnalité est désactivée.
-
-        Player player = event.getPlayer();
-        UUID playerUUID = player.getUniqueId();
-        String message = event.getMessage();
-
-        // Récupère la liste des messages du joueur, ou en crée une nouvelle si elle n'existe pas.
-        // File concurrente : le webhook la lit depuis un autre thread pendant que le chat y écrit
-        Queue<String> messages = recentMessages.computeIfAbsent(playerUUID, k -> new ConcurrentLinkedQueue<>());
-
-        // Ajoute le nouveau message.
-        messages.add(message);
-
-        // Si la liste dépasse la taille maximale, on retire le message le plus ancien.
-        while (messages.size() > maxMessagesToStore) {
-            messages.poll();
-        }
+    /** Lu en dernier (MONITOR), annulé compris : le texte est celui que les autres voient, ou le message bloqué. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerChat(AsyncChatEvent event) {
+        int limite = Math.max(maxMessagesToStore, 5);
+        Deque<Message> messages = recentMessages.computeIfAbsent(event.getPlayer().getUniqueId(), k -> new ConcurrentLinkedDeque<>());
+        messages.addLast(new Message(PLAIN.serialize(event.message()), event.isCancelled()));
+        while (messages.size() > limite) messages.pollFirst();
     }
 
-    /**
-     * Gère la déconnexion d'un joueur.
-     */
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
@@ -80,7 +69,7 @@ public class PlayerListener implements Listener {
         boolean network = plugin.getNetworkVotes() != null;
         VoteManager.ActiveVote vote = voteManager.getActiveVote(playerUUID);
         if (vote != null && !network) {
-            voteManager.endVote(vote, false); // Annule le vote, le considérant comme un échec.
+            voteManager.endVote(vote, false);
             plugin.getServer().broadcastMessage(voteManager.cancelledMessage(player.getName()));
         }
 
@@ -88,8 +77,6 @@ public class PlayerListener implements Listener {
         if (network && vote != null && !vote.isMirror()) {
             return;
         }
-
-        // Nettoie les messages stockés pour le joueur qui se déconnecte pour libérer de la mémoire.
         recentMessages.remove(playerUUID);
     }
 
@@ -98,24 +85,36 @@ public class PlayerListener implements Listener {
         recentMessages.remove(uuid);
     }
 
-    /**
-     * Permet au VoteManager de récupérer les derniers messages d'un joueur.
-     *
-     * @param uuid L'UUID du joueur.
-     * @return Une liste formatée des derniers messages, ou un message par défaut.
-     */
+    /** Derniers messages pour le webhook du staff, messages bloqués compris (marqués). */
     public String getFormattedRecentMessages(UUID uuid) {
-        Queue<String> messages = recentMessages.get(uuid);
+        Deque<Message> messages = recentMessages.get(uuid);
         if (messages == null || messages.isEmpty()) {
             return "Aucun message récent enregistré.";
         }
-
-        // Utilise un StringBuilder pour une construction de chaîne efficace.
         StringBuilder formattedMessages = new StringBuilder();
-        for (String msg : messages) {
-            // Pas d'échappement JSON ici : JSONObject#put s'en charge, un second passage doublait les \ et les "
-            formattedMessages.append("`").append(msg).append("`\n");
+        int ignores = Math.max(0, messages.size() - maxMessagesToStore);
+        for (Message msg : messages) {
+            if (ignores-- > 0) continue;
+            // Pas d'échappement JSON ici : JSONObject#put s'en charge
+            formattedMessages.append(msg.bloque() ? "🚫 `" : "`").append(msg.texte().replace('`', '\'')).append("`\n");
         }
         return formattedMessages.toString();
+    }
+
+    /**
+     * Lignes du menu de vote : les {@code max} derniers messages, du plus ancien au plus récent. Un message bloqué
+     * n'est pas recopié : on montre {@code bloque} à sa place.
+     */
+    public List<String> menuLines(UUID uuid, int max, String format, String bloque) {
+        Deque<Message> messages = recentMessages.get(uuid);
+        List<String> lignes = new ArrayList<>();
+        if (messages == null) return lignes;
+        Iterator<Message> it = messages.descendingIterator();
+        while (it.hasNext() && lignes.size() < max) {
+            Message msg = it.next();
+            String texte = msg.texte().length() > 40 ? msg.texte().substring(0, 40) + "…" : msg.texte();
+            lignes.add(0, msg.bloque() ? bloque : format.replace("{message}", texte.replace('§', '&')));
+        }
+        return lignes;
     }
 }

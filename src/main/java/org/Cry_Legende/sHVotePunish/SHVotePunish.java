@@ -29,6 +29,7 @@ public final class SHVotePunish extends JavaPlugin {
     private static SHVotePunish instance;
     private ConfigManager configManager;
     private VoteManager voteManager;
+    private org.Cry_Legende.sHVotePunish.managers.Protections protections;
     private Storage storage;
     private PlayerListener playerListener;
     // Section reseau de config.yml au démarrage : elle ne se relit pas à chaud
@@ -49,6 +50,7 @@ public final class SHVotePunish extends JavaPlugin {
         this.networkSignature = networkSignature();
         this.storage = new Storage(this);
         this.voteManager = new VoteManager(this);
+        this.protections = new org.Cry_Legende.sHVotePunish.managers.Protections(this);
         this.playerListener = new PlayerListener(this);
 
         // 2. Essayer de s'accrocher à l'API de permissions de Vault
@@ -185,6 +187,10 @@ public final class SHVotePunish extends JavaPlugin {
 
     public VoteManager getVoteManager() {
         return voteManager;
+    }
+
+    public org.Cry_Legende.sHVotePunish.managers.Protections getProtections() {
+        return protections;
     }
 
     public Storage getStorage() {

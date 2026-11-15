@@ -42,6 +42,21 @@ log_vote_end: "[VOTE END] Target: {target}, Outcome: {outcome}, Votes: {current}
 
 # --- /votepunish et /shvotepunish ---
 
+# --- Garde-fous (section protections de config.yml) ---
+refus_staff_connecte: "&7&l« &6&lSGuard &8&l» &7Un membre du &6staff &7est connecté : signale le joueur avec [/report <pseudo>]."
+refus_temps_de_jeu: "&7&l« &c&lSGuard &8&l» &7Il faut un peu plus de &ctemps de jeu &7pour lancer un vote."
+refus_temps_de_jeu_vote: "&7&l« &c&lSGuard &8&l» &7Il faut un peu plus de &ctemps de jeu &7pour voter."
+refus_delai_lancement: "&7&l« &c&lSGuard &8&l» &7Tu viens déjà de lancer un vote, &cpatiente &7un peu."
+refus_delai_echec: "&7&l« &c&lSGuard &8&l» &7Ton dernier vote a échoué, &cpatiente &7avant d'en lancer un autre."
+refus_limite_jour: "&7&l« &c&lSGuard &8&l» &7Tu as lancé &cassez de votes &7aujourd'hui."
+refus_meme_ip: "&7&l« &c&lSGuard &8&l» &7Un vote a déjà été donné &cdepuis ta connexion&7."
+# Menu de vote : {message} est un message récent de la cible
+menu_dernier_message: "&8» &7{message}"
+menu_message_bloque: "&8» &c(message bloqué par le filtre)"
+menu_aucun_message: "&8» &7(aucun message récent)"
+# Webhook du lancement d'un vote. {initiator}, {target}
+webhook_lancement: "Vote lancé par **{initiator}** contre **{target}**"
+
 # /votepunish tapée dans la console
 player_only: "&7&l« &c&lSGuard &8&l» &cCette commande doit être exécutée par un joueur."
 usage_player: "&7&l« &c&lSGuard &8&l» &cUtilisation : /votepunish <joueur>"

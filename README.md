@@ -46,8 +46,21 @@ Vérifiées avec Vault ; les noms de `use`, `bypass`, `admin` et `eligibility_by
 |---|---|---|
 | `shvotepunish.use` | Lancer un vote et voter. | `op` |
 | `shvotepunish.bypass` | Ne peut pas être la cible d'un vote. | `op` |
+| `shvotepunish.staff` | Compte comme staff connecté : les votes sont refusés (`protections.permission-staff`). | `op` |
 | `shvotepunish.admin` | Toutes les sous-commandes de `/shvotepunish`. | `op` |
 | `shvotepunish.admin.ignore`, `.unignore`, `.unpunish`, `.import`, `.reload`, `.list`, `.info` | Une par sous-commande du même nom. | `op` |
+
+## Garde-fous
+
+Section `protections` du `config.yml` :
+
+- **Staff connecté** : un vote ne peut pas être lancé quand un membre du staff actif (inactif depuis moins de `staff-actif-minutes`, vanish compris) est sur le serveur ; `/votepunish` renvoie vers `/report`.
+- **Temps de jeu** : minimum pour lancer un vote (`temps-de-jeu-lancer-minutes`) et pour voter (`temps-de-jeu-voter-minutes`).
+- **Délais** : entre deux votes lancés par un même joueur, et plus long après un vote qu'il a lancé et qui a échoué ; plafond de lancements par 24 heures.
+- **Un vote par IP** : un double compte sur la même connexion ne vote pas deux fois (l'initiateur compte dès le lancement).
+- **Preuves** : le menu de vote montre les derniers messages de la cible (`{derniers_messages}` dans `vote_menu.player_head_lore`) ; un message refusé par le filtre du chat est signalé sans être recopié. Le webhook prévient aussi dès le lancement (`discord_webhook.au_lancement`).
+
+Le staff (`permissions.admin`) n'est pas soumis aux garde-fous.
 
 ## Mode réseau (SHNetwork)
 

@@ -34,6 +34,9 @@ permissions:
   shvotepunish.use:
     description: Lancer un vote contre un joueur et voter (permissions.use du config.yml).
     default: op
+  shvotepunish.staff:
+    description: Compte comme staff connecté (protections.permission-staff) ; les votes sont alors refusés.
+    default: op
   shvotepunish.bypass:
     description: Ne peut pas être la cible d'un vote (permissions.bypass du config.yml).
     default: op

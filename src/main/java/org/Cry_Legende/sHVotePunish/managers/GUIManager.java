@@ -110,6 +110,7 @@ public class GUIManager {
 
         // Tête du joueur avec les stats du vote
         List<String> lore = configManager.getVoteMenuPlayerHeadLore().stream()
+            .flatMap(line -> line.contains("{derniers_messages}") ? derniersMessages(vote).stream() : java.util.stream.Stream.of(line))
             .map(line -> line.replace("{player}", vote.getTargetName())
                 .replace("{current_votes}", String.valueOf(vote.getCurrentVotes()))
                 .replace("{required_votes}", String.valueOf(vote.getRequiredVotes())))
@@ -131,6 +132,15 @@ public class GUIManager {
 
 
     // --- Méthodes utilitaires ---
+
+    /** Derniers messages de la cible, ou une ligne qui dit qu'il n'y en a pas (messages bloqués jamais recopiés). */
+    private List<String> derniersMessages(VoteManager.ActiveVote vote) {
+        int max = plugin.getConfig().getInt("vote_menu.derniers_messages", 5);
+        List<String> lignes = plugin.getPlayerListener().menuLines(vote.getTargetUUID(), max,
+            configManager.text("menu_dernier_message"), configManager.text("menu_message_bloque"));
+        if (lignes.isEmpty()) return List.of(configManager.text("menu_aucun_message"));
+        return lignes;
+    }
 
     private ItemStack createGuiItem(Material material, String name, List<String> lore) {
         ItemStack item = new ItemStack(material, 1);
