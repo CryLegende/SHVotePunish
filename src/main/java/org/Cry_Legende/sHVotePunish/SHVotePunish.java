@@ -59,7 +59,6 @@ public final class SHVotePunish extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
-        getLogger().info("Le hook avec Vault a été établi avec succès.");
 
         // 3. Enregistrer les commandes et les listeners
         try {
@@ -76,7 +75,6 @@ public final class SHVotePunish extends JavaPlugin {
         // 4. Votes et listes partagés entre les serveurs, si SHNetwork est là
         enableNetwork();
 
-        getLogger().info("SHVotePunish a été activé avec succès !");
     }
 
     @Override
@@ -87,7 +85,6 @@ public final class SHVotePunish extends JavaPlugin {
         if (this.networkVotes != null) {
             this.networkVotes.close();
         }
-        getLogger().info("SHVotePunish a été désactivé.");
     }
 
     /**
